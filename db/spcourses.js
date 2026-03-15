@@ -48,7 +48,7 @@ export const spcourses = {
 
     hero: {
 
-      title: "Data Analyst",
+      title: "Advanced Excel",
 
       subtitle:
         "Master Excel from basics to advanced dashboards, automation and data analysis. Build real industry projects and get job-ready skills.",
