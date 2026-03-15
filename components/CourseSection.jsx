@@ -178,9 +178,13 @@ const CourseSection = () => {
           </p>
         </div>
 
+
         {/* Courses Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-16">
-          {CourseData.slice(0, visibleCourses).map((course, index) => (
+          {CourseData
+            .slice(0, visibleCourses )
+            .filter((course) => course.slug !== "aml-anti-money-laundering-specialist-course")
+            .map((course, index) => (
             <CourseCard key={course.id} course={course} index={index} />
           ))}
         </div>
