@@ -14,7 +14,7 @@ import {
 
 export default function CourseHero({ course }) {
 
-const [progress] = useState(30);
+const [progress] = useState(0);
 
 const hero = course.hero;
 
