@@ -3,6 +3,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { spcourses } from "@/db/spcourses";
 import {
   BookOpen,
   CheckCircle,
@@ -18,48 +19,19 @@ import {
 } from "lucide-react";
 
 
-const selfPacedCourses = [
-  {
-    slug: "advance-excel",
-    title: "Advance Excel",
-    image: "/course/excel.jpg",
-    mode: "Self Paced",
-    goal: "Master formulas, pivot tables, dashboards and automation.",
-    modules: ["Basics", "Functions", "Dashboards"]
-  },
-  {
-    slug: "sql",
-    title: "SQL",
-    image: "/course/sql.jpg",
-    mode: "Self Paced",
-    goal: "Learn database queries, joins, filtering and analytics.",
-    modules: ["Queries", "Joins", "Analytics"]
-  },
-  {
-    slug: "power-bi",
-    title: "Power BI",
-    image: "/course/powerbi.jpg",
-    mode: "Self Paced",
-    goal: "Create interactive dashboards and business reports.",
-    modules: ["Data Model", "DAX", "Dashboards"]
-  },
-  {
-    slug: "tableau",
-    title: "Tableau",
-    image: "/course/tableau.jpg",
-    mode: "Self Paced",
-    goal: "Build professional data visualizations and dashboards.",
-    modules: ["Charts", "Dashboard", "Story"]
-  },
-  {
-    slug: "python",
-    title: "Python",
-    image: "/course/python.jpg",
-    mode: "Self Paced",
-    goal: "Learn Python programming for data analysis and automation.",
-    modules: ["Basics", "Pandas", "Projects"]
-  }
-];
+// Convert database object into list
+// This allows us to show all courses automatically
+
+const selfPacedCourses = Object.entries(spcourses).map(
+  ([slug, course]) => ({
+    slug,
+    title: course.title,
+    image: course.image,
+     modules: course.curriculum?.map(m => m.moduleTitle) || [],
+    goal: "Learn industry skills with projects",
+    mode: "Self Paced"
+  })
+);
 
 
 export default function SelfPacedPage() {

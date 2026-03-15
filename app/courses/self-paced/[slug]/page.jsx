@@ -1,10 +1,11 @@
-// app/courses/[slug]/page.jsx
 "use client";
 
-
-import { useState } from "react";
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
 import { useParams } from "next/navigation";
+import { spcourses } from "@/db/spcourses";
+import CourseHero from "@/components/CourseHero";
+
 import {
   BookOpen,
   Star,
@@ -15,244 +16,132 @@ import {
   ChevronUp
 } from "lucide-react";
 
-
-
-
-// COURSE DATA
-const courses = {
-  "advance-excel": {
-    title: "Advance Excel",
-    image: "/course/excel.jpg",
-    rating: "4.8",
-    students: "1200+",
-    projects: "5",
-    description:
-      "Master Excel from basics to advanced dashboards, automation and data analysis.",
-    modules: [
-      "Excel Fundamentals",
-      "Formulas & Functions",
-      "Data Cleaning",
-      "Intermediate Excel",
-      "Pivot Tables",
-      "Advanced Excel Functions",
-      "Data Visualization",
-      "Excel Dashboards",
-      "Automation with Macros",
-      "Industry Projects"
-    ]
-  },
-
-
-  sql: {
-    title: "SQL for Data Analytics",
-    image: "/course/sql.jpg",
-    rating: "4.7",
-    students: "900+",
-    projects: "5",
-    description:
-      "Learn SQL from basics to advanced analytics queries used by data analysts.",
-    modules: [
-      "SQL Fundamentals",
-      "Basic Queries",
-      "Aggregation",
-      "SQL JOINs",
-      "Advanced SQL Queries",
-      "CRUD Operations",
-      "Analytical SQL",
-      "Performance Optimization",
-      "Industry SQL Projects"
-    ]
-  },
-
-
-  "power-bi": {
-    title: "Power BI",
-    image: "/course/powerbi.jpg",
-    rating: "4.8",
-    students: "800+",
-    projects: "5",
-    description:
-      "Create powerful dashboards and business intelligence reports using Power BI.",
-    modules: [
-      "Power BI Introduction",
-      "Data Import",
-      "Power Query",
-      "Data Modeling",
-      "DAX Fundamentals",
-      "Data Visualization",
-      "Advanced DAX",
-      "Power BI Service",
-      "Industry Projects"
-    ]
-  },
-
-
-  tableau: {
-    title: "Tableau",
-    image: "/course/tableau.jpg",
-    rating: "4.7",
-    students: "600+",
-    projects: "5",
-    description:
-      "Build professional data visualization dashboards using Tableau.",
-    modules: [
-      "Tableau Introduction",
-      "Connecting Data",
-      "Basic Charts",
-      "Calculated Fields",
-      "Dashboard Design",
-      "Advanced Analytics",
-      "Advanced Charts",
-      "Publishing Dashboards",
-      "Industry Projects"
-    ]
-  },
-
-
-  python: {
-    title: "Python for Data Analytics",
-    image: "/course/python.jpg",
-    rating: "4.8",
-    students: "700+",
-    projects: "6",
-    description:
-      "Learn Python programming for automation, data analysis and visualization.",
-    modules: [
-      "Python Introduction",
-      "Variables & Data Types",
-      "Conditions",
-      "Loops",
-      "Data Structures",
-      "Data Analysis with Pandas",
-      "Data Visualization",
-      "Working with Real Data",
-      "Automation with Python",
-      "Industry Projects"
-    ]
-  }
-};
-
-
-
-
 export default function CourseDetailPage() {
+
   const params = useParams();
   const slug = params.slug;
 
-
-  const course = courses[slug];
-
+  const course = spcourses?.[slug];
 
   const [tab, setTab] = useState("overview");
   const [openModule, setOpenModule] = useState(null);
+  const [activeVideo, setActiveVideo] = useState(null);
 
+  /* NEW STATES FOR PROGRESS */
+  const [progress, setProgress] = useState(0);
+  const [watchedSeconds, setWatchedSeconds] = useState(0);
+  const [lastAllowedTime, setLastAllowedTime] = useState(0);
+
+  const videoRef = useRef(null);
+
+  /* TOTAL COURSE TIME */
+  const getTotalCourseSeconds = () => {
+
+    let total = 0;
+
+    course.curriculum.forEach((module) => {
+      module.lessons.forEach((lesson) => {
+
+        if (lesson.durationSeconds) {
+          total += lesson.durationSeconds;
+        }
+
+      });
+    });
+
+    return total || 1;
+
+  };
+
+  /* TRACK WATCH TIME */
+  const handleTimeUpdate = (e) => {
+
+    const current = e.target.currentTime;
+
+    /* prevent skip */
+    if (current > lastAllowedTime + 1) {
+      e.target.currentTime = lastAllowedTime;
+      return;
+    }
+
+    setLastAllowedTime(current);
+
+    setWatchedSeconds((prev) => {
+
+      const totalWatched = prev + 1;
+
+      const percent =
+        (totalWatched / getTotalCourseSeconds()) * 100;
+
+      setProgress(Math.min(percent.toFixed(1), 100));
+
+      return totalWatched;
+
+    });
+
+  };
+
+  /* Prevent right click */
+  useEffect(() => {
+    const disableRightClick = (e) => e.preventDefault();
+    document.addEventListener("contextmenu", disableRightClick);
+    return () => document.removeEventListener("contextmenu", disableRightClick);
+  }, []);
+
+  /* Prevent keyboard skip */
+  useEffect(() => {
+
+    const blockKeys = (e) => {
+
+      if (
+        e.key === "ArrowRight" ||
+        e.key === "ArrowLeft" ||
+        e.key === "l" ||
+        e.key === "j"
+      ) {
+        e.preventDefault();
+      }
+
+    };
+
+    window.addEventListener("keydown", blockKeys);
+
+    return () => window.removeEventListener("keydown", blockKeys);
+
+  }, []);
+
+  /* Basic screen recording deterrent */ /*
+  useEffect(() => {
+    const handleBlur = () => {
+      document.body.style.filter = "brightness(0)";
+    };
+
+    const handleFocus = () => {
+      document.body.style.filter = "brightness(1)";
+    };
+
+    window.addEventListener("blur", handleBlur);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.removeEventListener("blur", handleBlur);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, []); */
 
   if (!course) {
     return <div className="pt-40 text-center">Course not found</div>;
   }
 
-
   return (
     <div className="min-h-screen bg-gray-50">
 
-
       {/* HERO */}
-      <section className="pt-36 pb-12">
-        <div className="max-w-7xl mx-auto px-4 grid lg:grid-cols-3 gap-10">
-
-
-          {/* LEFT */}
-          <div className="lg:col-span-2">
-
-
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
-              {course.title}
-            </h1>
-
-
-            <p className="text-gray-600 mb-8">
-              {course.description}
-            </p>
-
-
-            {/* STATS */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-
-
-              <div className="bg-white p-4 rounded-xl border text-center">
-                <div className="text-xl font-bold">{course.rating}</div>
-                <Star className="mx-auto text-yellow-500" />
-                <div className="text-xs text-gray-500">Rating</div>
-              </div>
-
-
-              <div className="bg-white p-4 rounded-xl border text-center">
-                <div className="text-xl font-bold">{course.students}</div>
-                <Users className="mx-auto text-green-600" />
-                <div className="text-xs text-gray-500">Students</div>
-              </div>
-
-
-              <div className="bg-white p-4 rounded-xl border text-center">
-                <div className="text-xl font-bold">{course.projects}</div>
-                <Target className="mx-auto text-green-600" />
-                <div className="text-xs text-gray-500">Projects</div>
-              </div>
-
-
-              <div className="bg-white p-4 rounded-xl border text-center">
-                <div className="text-xl font-bold">100%</div>
-                <Award className="mx-auto text-green-600" />
-                <div className="text-xs text-gray-500">Fee Return</div>
-              </div>
-
-
-            </div>
-
-
-          </div>
-
-
-
-
-          {/* RIGHT CARD */}
-          <div>
-
-
-            <div className="bg-white rounded-2xl border shadow-lg overflow-hidden">
-
-
-              <img
-                src={course.image}
-                className="w-full h-48 object-cover"
-              />
-
-
-              <div className="p-6">
-                <button className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold">
-                  Enroll Now
-                </button>
-              </div>
-
-
-            </div>
-
-
-          </div>
-
-
-        </div>
-      </section>
-
-
-
-
-
+        <CourseHero course={course} />
 
       {/* TABS */}
-      <section className="bg-white border-t border-b sticky top-[70px] z-20">
+      <section className="bg-white border-t border-b sticky top-[0px] z-20">
         <div className="max-w-7xl mx-auto px-4 flex gap-8">
-
 
           <button
             onClick={() => setTab("overview")}
@@ -265,7 +154,6 @@ export default function CourseDetailPage() {
             Overview
           </button>
 
-
           <button
             onClick={() => setTab("curriculum")}
             className={`py-4 font-semibold ${
@@ -277,96 +165,166 @@ export default function CourseDetailPage() {
             Curriculum
           </button>
 
-
         </div>
       </section>
-
-
-
-
-
 
       {/* CONTENT */}
       <section className="py-12">
         <div className="max-w-5xl mx-auto px-4">
 
-
-          {tab === "overview" && (
-            <div className="bg-white rounded-2xl p-6 border">
-
-
-              <h2 className="text-2xl font-bold mb-4">
-                What You'll Achieve
-              </h2>
-
-
-              <ul className="grid md:grid-cols-2 gap-4">
-                <li>✔ Build real projects</li>
-                <li>✔ Master industry tools</li>
-                <li>✔ Build professional portfolio</li>
-                <li>✔ Get job-ready skills</li>
-              </ul>
-
-
-            </div>
-          )}
-
-
+          {/* CURRICULUM */}
           {tab === "curriculum" && (
-            <div className="bg-white rounded-2xl border">
 
+            <div className="space-y-8">
 
-              {course.modules.map((module, i) => (
-                <div key={i} className="border-b">
+                {/* FREE PREVIEW */}
+                    <div className="bg-white rounded-2xl border p-6">
 
+                    <h2 className="text-2xl font-bold mb-6">
+                    Free Preview
+                    </h2>
 
-                  <button
-                    onClick={() =>
-                      setOpenModule(openModule === i ? null : i)
-                    }
-                    className="w-full p-5 flex justify-between items-center"
-                  >
+                    {course.freePreview.map((video, i) => (
 
+                    <div key={i} className="mb-6">
 
-                    <span className="font-semibold">
-                      Module {i + 1}: {module}
-                    </span>
+                    <h3 className="font-semibold mb-2">
+                    {video.title}
+                    </h3>
 
+                    <button
+                    onClick={() => setActiveVideo(video.video)}
+                    className="text-green-600 font-medium"
+                    >
+                    ▶ Play Preview
+                    </button>
 
-                    {openModule === i ? (
-                      <ChevronUp />
-                    ) : (
-                      <ChevronDown />
-                    )}
-
-
-                  </button>
-
-
-                  {openModule === i && (
-                    <div className="p-5 bg-gray-50 text-sm text-gray-600">
-                      Lessons and topics inside this module will appear here.
                     </div>
-                  )}
 
+                    ))}
+
+                    </div>
+
+              {/* VIDEO PLAYER */}
+              {activeVideo && (
+
+                <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+
+                  <div className="relative w-full max-w-5xl">
+
+                    <button
+                      onClick={() => setActiveVideo(null)}
+                      className="absolute -top-12 right-0 bg-white text-black w-10 h-10 rounded-full flex items-center justify-center shadow"
+                    >
+                      X
+                    </button>
+
+                    <div className="w-full flex justify-center">
+
+                      <video
+                        ref={videoRef}
+                        controls
+                        autoPlay
+                        playsInline
+                        controlsList="nodownload"
+                        //disablePictureInPicture
+                        className="max-h-[85vh] max-w-full rounded-xl bg-black object-contain"
+                        src={activeVideo}
+
+                        onTimeUpdate={handleTimeUpdate}
+
+                        onSeeking={(e) => {
+                          if (e.target.currentTime > lastAllowedTime) {
+                            e.target.currentTime = lastAllowedTime;
+                          }
+                        }}
+
+                        onRateChange={(e) => {
+                          if (e.target.playbackRate !== 1) {
+                            e.target.playbackRate = 1;
+                          }
+                        }}
+
+                      />
+
+                    </div>
+
+                  </div>
 
                 </div>
-              ))}
 
+              )}
+
+              {/* MODULES */}
+              <div className="bg-white rounded-2xl border">
+
+                {course.curriculum.map((module, i) => (
+
+                  <div key={i} className="border-b">
+
+                    <button
+                      onClick={() =>
+                        setOpenModule(openModule === i ? null : i)
+                      }
+                      className="w-full p-5 flex justify-between items-center"
+                    >
+
+                      <span className="font-semibold">
+                        {module.moduleTitle}
+                      </span>
+
+                      {openModule === i ? <ChevronUp /> : <ChevronDown />}
+
+                    </button>
+
+                    {openModule === i && (
+
+                      <div className="p-5 bg-gray-50 space-y-4">
+
+                        {module.lessons.map((lesson, j) => (
+
+                          <div
+                            key={j}
+                            className="bg-white rounded-lg border p-4 flex justify-between items-center hover:bg-gray-50 transition"
+                          >
+
+                            <span>{lesson.lessonTitle}</span>
+
+                            <button
+                              onClick={() => {
+                                setActiveVideo(lesson.video);
+                                setLastAllowedTime(0);
+                              }}
+                              className="text-green-600 font-semibold flex items-center gap-2"
+                            >
+                              ▶ Play
+                            </button>
+
+                          </div>
+
+                        ))}
+
+                      </div>
+
+                    )}
+
+                  </div>
+
+                ))}
+
+              </div>
 
             </div>
-          )}
 
+          )}
 
         </div>
       </section>
 
-
-
-
-      {/* Final CTA */}
+      {/* CTA */}
       <section className="py-16 bg-gradient-to-r from-green-600 to-green-700">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -374,26 +332,28 @@ export default function CourseDetailPage() {
             viewport={{ once: true }}
             className="text-white"
           >
-            <h2 className="text-3xl lg:text-4xl font-bold mb-4">
-              Start Your Journey Today
+
+            <h2 className="text-3xl font-bold mb-4">
+              Start Your Learning Journey
             </h2>
-            <p className="text-green-100 text-lg mb-8 max-w-2xl mx-auto">
-              Join thousands of students who have transformed their careers with our industry-focused curriculum
+
+            <p className="text-green-100 mb-8">
+              Join thousands of students building real skills.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <motion.button
-                className="bg-white text-green-600 cursor-pointer px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition-colors duration-300 flex items-center justify-center gap-3 shadow-lg"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <BookOpen className="w-5 h-5" />
-                <span>Enroll Now</span>
-              </motion.button>
-            </div>
+
+            <motion.button
+              className="bg-white text-green-600 px-8 py-4 rounded-xl font-bold flex items-center gap-3 mx-auto"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <BookOpen className="w-5 h-5" />
+              Enroll Now
+            </motion.button>
+
           </motion.div>
+
         </div>
       </section>
-
 
     </div>
   );
