@@ -89,7 +89,8 @@ export const spcourses = {
       "Pivot Tables",
       "Power Query",
       "Excel Charts",
-      "Macros & Automation"
+      "Macros & Automation",
+      "Excel Dashboards"
     ],
 
     // ── OVERVIEW CARDS ────────────────────────────────────────────
@@ -108,7 +109,14 @@ export const spcourses = {
     // ── FREE PREVIEW LESSONS ──────────────────────────────────────
     // Shown on course listing page without login
     // VIDEO: /public/videos/filename.mp4
-    freePreview: [
+    curriculum: [
+    // freePreview: [
+    {
+      
+        moduleTitle:       "Free Preview Lessons",
+        moduleDescription: "Get a sneak peek of the course with these free preview lessons.",
+
+        lessons: [
       {
         title:           "Course Introduction",
         durationSeconds: 83,
@@ -121,7 +129,10 @@ export const spcourses = {
         video:           "/videos/excel-interface.mp4",
         description:     "Understanding Excel layout and tools"
       }
-    ],
+      // ↓ ADD MORE FREE PREVIEW LESSONS HERE
+    ]
+      },
+    // ],
 
     // ── CURRICULUM ────────────────────────────────────────────────
     //
@@ -137,7 +148,7 @@ export const spcourses = {
     // TO ADD A LESSON:  Copy a lesson object, paste inside `lessons` array
     // TO ADD A QUESTION: Copy a question object, paste inside `quiz` array
     //
-    curriculum: [
+    // curriculum: [
 
       // ── Module 1 ─────────────────────────────────────────────
       {
