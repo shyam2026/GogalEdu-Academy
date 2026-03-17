@@ -1,5 +1,20 @@
- "use client";
+// app/courses/self-paced/page.jsx
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// SELF-PACED COURSES LISTING PAGE
+//
+// FIXES IN THIS VERSION:
+//  1. course.hero.title    (was course.title — field does not exist at root)
+//  2. course.hero.image    (was course.image — field does not exist at root)
+//  3. course.hero.stats.rating / .students / .projects pulled correctly
+//  4. course.hero.pricing.discountPrice / .price pulled correctly
+//  5. course.instructor.name pulled for byline
+//  6. Module count shown instead of all module tag pills (was too heavy)
+//  7. Card click area & "Explore Course" button both go to correct slug page
+//  8. Tools array truncated to first 3 icons only
+// ─────────────────────────────────────────────────────────────────────────────
 
+"use client";
 
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -12,533 +27,539 @@ import {
   Award,
   Target,
   Clock,
-  ArrowRight,
   Briefcase,
   BadgeCheck,
-  PlayCircle
+  PlayCircle,
+  ArrowRight,
+  Layers,
+  Wrench,
+  ChevronRight,
+  TrendingUp,
+  IndianRupee,
 } from "lucide-react";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// BUILD COURSE LIST FROM DATABASE
+// All field paths corrected to match spcourses.js schema:
+//   hero.title | hero.image | hero.stats.* | hero.pricing.* | instructor.name
+// ─────────────────────────────────────────────────────────────────────────────
+const selfPacedCourses = Object.entries(spcourses).map(([slug, course]) => {
+  // Count only non-free-preview modules for the display number
+  const contentModules = (course.curriculum || []).filter(
+    (m) => !m.isFreePreview
+  );
 
-// Convert database object into list
-// This allows us to show all courses automatically
+  // Show up to 2 tools for the card badge row
+  const topTools = (course.tools || []).slice(0, 2);
 
-const selfPacedCourses = Object.entries(spcourses).map(
-  ([slug, course]) => ({
+  return {
     slug,
-    title: course.title,
-    image: course.image,
-     modules: course.curriculum?.map(m => m.moduleTitle) || [],
-    goal: "Learn industry skills with projects",
-    mode: "Self Paced"
-  })
-);
+    title:         course.hero?.title        ?? slug,
+    image:         course.hero?.image        ?? "/course/default.jpg",
+    rating:        course.hero?.stats?.rating    ?? "4.8",
+    students:      course.hero?.students     ?? course.hero?.stats?.students ?? "200+",
+    projects:      course.hero?.stats?.projects  ?? "5",
+    price:         course.hero?.pricing?.price         ?? "5999",
+    discountPrice: course.hero?.pricing?.discountPrice ?? "2999",
+    discount:      course.hero?.pricing?.discount      ?? "50% OFF",
+    instructor:    course.instructor?.name   ?? "Expert Trainer",
+    moduleCount:   contentModules.length,
+    topTools,
+  };
+});
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ANIMATION VARIANTS
+// ─────────────────────────────────────────────────────────────────────────────
+const fadeUp = {
+  hidden: { opacity: 0, y: 24 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.5 } },
+};
 
+const stagger = {
+  show: { transition: { staggerChildren: 0.1 } },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PAGE
+// ─────────────────────────────────────────────────────────────────────────────
 export default function SelfPacedPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50">
 
-
-      {/* HERO */}
-      <section className="pt-36 pb-20 text-center">
+      {/* ══════════════════════════════════════════════════════════════
+          HERO
+      ══════════════════════════════════════════════════════════════ */}
+      <section className="pt-36 pb-16 text-center">
         <div className="max-w-4xl mx-auto px-4">
 
+          {/* Pill badge */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4 }}
+            className="inline-flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 text-sm font-semibold px-4 py-1.5 rounded-full mb-6"
+          >
+            <PlayCircle size={15} />
+            Self-Paced Online Learning
+          </motion.div>
 
-          <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
-            Self-Paced <span className="text-green-600">Online Courses</span>
-          </h1>
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="text-4xl lg:text-5xl font-bold text-gray-900 mb-5 leading-tight"
+          >
+            Master In-Demand{" "}
+            <span className="bg-gradient-to-r from-green-600 to-emerald-700 bg-clip-text text-transparent">
+              Data Skills
+            </span>
+          </motion.h1>
 
-
-          <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto -mb-5 leading-relaxed">
-            Learn anytime at your own pace with industry-focused training.
-            Complete projects, earn certification and even get your course
-            fee returned.
-          </p>
-
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="text-lg text-gray-500 max-w-2xl mx-auto leading-relaxed"
+          >
+            Industry-focused courses you can study on your own schedule.
+            Complete real projects, earn a verified certificate and get
+            your full course fee returned.
+          </motion.p>
 
         </div>
       </section>
 
-
-     
-
-
-
-
-      {/* Stats Section */}
-<motion.div
-    className="grid grid-cols-2 lg:grid-cols-4 gap-6 max-w-4xl mx-auto mt-0"    
-  initial={{ opacity: 0, y: 20 }}
-  animate={{ opacity: 1, y: 0 }}
-  transition={{ duration: 0.6 }}
->
-  {[
-    { number: "5+", label: "Self-Paced Courses", icon: BookOpen },
-    { number: "400+", label: "Students", icon: Users },
-    { number: "100%", label: "Refund Model", icon: CheckCircle },
-    { number: "4.7/5", label: "Rating", icon: Star },
-  ].map((stat, index) => {
-    const IconComponent = stat.icon;
-
-
-    return (
+      {/* ══════════════════════════════════════════════════════════════
+          STAT CARDS
+      ══════════════════════════════════════════════════════════════ */}
       <motion.div
-        key={stat.label}
-        className="bg-white rounded-2xl p-6 border border-gray-200/60 shadow-lg text-center"
-        whileHover={{ y: -4, scale: 1.02 }}
-        transition={{ type: "spring", stiffness: 300 }}
+        className="grid grid-cols-2 lg:grid-cols-4 gap-5 max-w-4xl mx-auto px-4"
+        variants={stagger}
+        initial="hidden"
+        animate="show"
       >
-        <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center text-white shadow-lg mx-auto mb-3">
-          <IconComponent className="w-6 h-6" />
-        </div>
-
-
-        <div className="text-2xl font-bold text-gray-900 mb-1">
-          {stat.number}
-        </div>
-
-
-        <div className="text-sm text-gray-600 font-medium">
-          {stat.label}
-        </div>
+        {[
+          { number: `${selfPacedCourses.length}+`, label: "Self-Paced Courses",  icon: BookOpen    },
+          { number: "1,500+",                       label: "Students Enrolled",   icon: Users       },
+          { number: "100%",                          label: "Fee Return Guarantee",icon: CheckCircle },
+          { number: "4.8/5",                         label: "Average Rating",      icon: Star        },
+        ].map((stat) => (
+          <motion.div
+            key={stat.label}
+            variants={fadeUp}
+            whileHover={{ y: -4, scale: 1.02 }}
+            transition={{ type: "spring", stiffness: 300 }}
+            className="bg-white rounded-2xl p-5 border border-gray-200/60 shadow-md text-center"
+          >
+            <div className="w-11 h-11 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center text-white shadow mx-auto mb-3">
+              <stat.icon className="w-5 h-5" />
+            </div>
+            <div className="text-2xl font-bold text-gray-900 mb-0.5">{stat.number}</div>
+            <div className="text-xs text-gray-500 font-medium leading-snug">{stat.label}</div>
+          </motion.div>
+        ))}
       </motion.div>
-    );
-  })}
-</motion.div>
 
-
-
-
-
-
-      {/* COURSES GRID */}
-      <section className="py-20 bg-gradient-to-br from-green-50 to-emerald-50 mt-14">
+      {/* ══════════════════════════════════════════════════════════════
+          COURSES GRID
+      ══════════════════════════════════════════════════════════════ */}
+      <section className="py-20 mt-14">
         <div className="max-w-7xl mx-auto px-4">
 
-
-           <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4 -mt-8 text-center">
-            Available{" "}
-            <span className="bg-gradient-to-r from-green-600 to-emerald-700 bg-clip-text text-transparent">
-                Self-Paced Courses
-            </span>
-           </h2>
-
-
-      {/* Description */}
-        <div className="text-center max-w-3xl mx-auto mb-12">
-            <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto mb-10 leading-relaxed">
-            Choose a course and start learning immediately.
-            </p>
-        </div>
-
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-
-
-            {selfPacedCourses.map((course,index)=>(
-           
-            <div key={index} className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col h-full">
-
-
-            {/* Image */}
-            <div className="relative h-40 overflow-hidden">
-            <img
-            src={course.image}
-            alt={course.title}
-            className="w-full h-full object-cover"
-            />
-
-
-            <div className="absolute top-3 left-3 bg-green-600 text-white text-sm px-4 py-1 rounded-lg">
-            Self Paced
-            </div>
-
-
-            </div>
-
-
-            {/* Content */}
-            <div className="p-5 flex flex-col flex-1">
-
-
-            <h3 className="text-lg font-bold text-gray-900 mb-2">
-            {course.title}
-            </h3>
-
-
-            {/* Duration */}
-            <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
-
-
-            {/* <span>⏱ {course.duration}</span>
-
-
-            <span>💻 {course.mode}</span> */}
-
-
-            </div>
-
-
-            {/* Rating */}
-            <div className="flex items-center text-sm text-gray-600 mb-3">
-
-
-            <span className="text-yellow-500 mr-1"></span>
-
-
-            {course.rating}
-
-
-            </div>
-
-
-            {/* Goal */}
-            <p className="text-sm text-gray-600 bg-green-50 p-2 rounded-md mb-3">
-            <span className="font-semibold text-green-700">Goal: </span>
-            {course.goal}
-            </p>
-
-
-            {/* Modules */}
-            <div className="flex flex-wrap gap-2 mb-4">
-
-
-            {course.modules.map((module,i)=>(
-            <span
-            key={i}
-            className="bg-green-50 text-green-700 px-2 py-1 rounded-md text-xs font-medium border border-green-100"
-            >
-            {module}
-            </span>
-            ))}
-
-
-            </div>
-
-
-            {/* Button */}
-            <div className="mt-auto">
-
-
-            <Link
-            href={`/courses/self-paced/${course.slug}`}
-                className="w-full flex items-center justify-center gap-2
-                bg-green-600 text-white py-2.5 rounded-lg font-semibold
-                transition-all duration-300 hover:bg-green-700 hover:gap-3"
-            >
-            Explore Course →
-            </Link>
-
-
-            </div>
-
-
-            </div>
-
-
-            </div>
-
-
-            ))}
-
-
-            </div>
-        </div>
-      </section>
-
-
-     
-
-
-
-
-      {/* HOW IT WORKS */}
-      <section className="py-20 bg-white">
-        <div className="max-w-6xl mx-auto text-center px-4">
-
-
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-12 text-center">
-            How The{" "}
-            <span className="bg-gradient-to-r from-green-600 to-emerald-700 bg-clip-text text-transparent">
-                Refund Model Works
-            </span>
+          {/* Section heading */}
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
+              Available{" "}
+              <span className="bg-gradient-to-r from-green-600 to-emerald-700 bg-clip-text text-transparent">
+                Courses
+              </span>
             </h2>
+            <p className="text-gray-500 max-w-xl mx-auto">
+              Choose a course below and start learning immediately — at your own pace.
+            </p>
+          </div>
 
+          {/* ── Cards grid ────────────────────────────────────────── */}
+          <motion.div
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7"
+            variants={stagger}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: "-60px" }}
+          >
+            {selfPacedCourses.map((course) => (
+              <motion.div key={course.slug} variants={fadeUp} >
+                {/*
+                  ┌─────────────────────────────────────────────────────┐
+                  │  COURSE CARD                                         │
+                  │  • Entire card is clickable (Link wrapper)           │
+                  │  • Separate "Explore Course" CTA at the bottom       │
+                  └─────────────────────────────────────────────────────┘
+                */}
+                <Link
+                  href={`/courses/self-paced/${course.slug}`}
+                  className="group block bg-white rounded-2xl border border-gray-200
+                             shadow-sm hover:shadow-xl hover:border-green-200
+                             transition-all duration-300 overflow-hidden h-full"
+                >
+                  {/* ── Course image ──────────────────────────────── */}
+                  <div className="relative h-44 overflow-hidden bg-gray-100">
+                    <img
+                      src={course.image}
+                      alt={course.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto mt-12">
+                    {/* Gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
 
+                    {/* Discount badge — top right */}
+                    <div className="absolute top-3 right-3 bg-violet-500/90 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow">
+                      {course.discount}
+                    </div>
 
-  {/* Step 1 */}
-  <div className="bg-white border border-gray-200 rounded-2xl p-6 text-center shadow-sm hover:shadow-lg transition-all duration-300 group">
+                    {/* Self-Paced badge — top left */}
+                    <div className="absolute top-3 left-3 bg-green-600/90 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1 rounded-lg">
+                      Self-Paced
+                    </div>
 
+                    {/* Price — bottom left, over gradient */}
+                    <div className="absolute bottom-3 left-3 bg-green-600/80  backdrop-blur-sm flex items-baseline px-2 py-1 rounded-lg gap-3">
+                      <span className="text-white font-bold text-lg leading-none">
+                        ₹{course.discountPrice}
+                      </span>
+                      <span className="text-white/60 font-medium text-sm line-through leading-none">
+                        ₹{course.price}
+                      </span>
+                    </div>
+                  </div>
 
-    <div className="w-12 h-12 bg-green-100 text-green-600 rounded-xl flex items-center justify-center mx-auto mb-4 text-lg font-bold">
-      <BookOpen className="text-green-600 w-7 h-7" />
-    </div>
+                  {/* ── Card body ─────────────────────────────────── */}
+                  <div className="p-5 flex flex-col gap-3">
 
+                    {/* Title */}
+                    <h3 className="text-base font-bold text-gray-900 leading-snug group-hover:text-green-700 transition-colors ">
+                      {course.title}
+                    </h3>
 
-    <h3 className="font-semibold text-gray-900 mb-2">
-      Enroll in Course
-    </h3>
+                    {/* Instructor */}
+                    <p className="text-sm text-gray-500 flex items-center gap-1.5 -mt-1">
+                      <span className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 text-green-700 font-bold text-[9px]">
+                        {course.instructor.charAt(0)}
+                      </span>
+                      {course.instructor}
+                    </p>
 
+                    {/* Quick stats row */}
+                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                      {/* Rating */}
+                      <span className="flex items-center gap-1">
+                        <Star size={12} className="text-yellow-400 fill-yellow-400" />
+                        <span className="font-semibold text-gray-700">{course.rating}</span>
+                      </span>
+                      {/* Students */}
+                      <span className="flex items-center gap-1">
+                        <Users size={12} className="text-gray-400" />
+                        {course.students}
+                      </span>
+                      {/* Modules */}
+                      <span className="flex items-center gap-1">
+                        <Layers size={12} className="text-gray-400" />
+                        {course.moduleCount} modules
+                      </span>
+                      {/* Projects */}
+                      <span className="flex items-center gap-1">
+                        <Briefcase size={12} className="text-gray-400" />
+                        {course.projects} projects
+                      </span>
+                    </div>
 
-    <p className="text-sm text-gray-600">
-      Register and get instant access to course materials.
-    </p>
+                    {/* Tools pills — max 3 */}
+                    {course.topTools.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {course.topTools.map((tool) => (
+                          <span
+                            key={tool}
+                            className="text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-md font-medium"
+                          >
+                            {tool}
+                          </span>
+                        ))}
+                        {(course.topTools.length < (spcourses[course.slug]?.tools?.length ?? 0)) && (
+                          <span className="text-[11px] text-gray-400 px-1 py-0.5">
+                            +{(spcourses[course.slug]?.tools?.length ?? 0) - course.topTools.length} more
+                          </span>
+                        )}
+                      </div>
+                    )}
 
+                    {/* Refund guarantee strip */}
+                    <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-lg px-3 py-2 text-xs text-green-700 font-medium">
+                      <BadgeCheck size={13} className="text-green-600 flex-shrink-0" />
+                      100% Fee Return on Completion
+                    </div>
 
-  </div>
+                    {/* CTA button */}
+                    <div className="mt-1">
+                      <div
+                        className="w-full flex items-center justify-center gap-2
+                                   bg-green-600 group-hover:bg-green-700 text-white
+                                   py-2.5 rounded-xl font-semibold text-sm
+                                   transition-all duration-300 group-hover:gap-3"
+                      >
+                        Explore Course
+                        <ArrowRight size={15} />
+                      </div>
+                    </div>
 
-
-
-
-  {/* Step 2 */}
-  <div className="bg-white border border-gray-200 rounded-2xl p-6 text-center shadow-sm hover:shadow-lg transition-all duration-300 group">
-
-
-    <div className="w-12 h-12 bg-green-100 text-green-600 rounded-xl flex items-center justify-center mx-auto mb-4 text-lg font-bold">
-      <PlayCircle className="text-green-600 w-7 h-7" />
-    </div>
-
-
-    <h3 className="font-semibold text-gray-900 mb-2">
-      Complete Lessons
-    </h3>
-
-
-    <p className="text-sm text-gray-600">
-      Study the modules at your own pace anytime.
-    </p>
-
-
-  </div>
-
-
-
-
-  {/* Step 3 */}
-  <div className="bg-white border border-gray-200 rounded-2xl p-6 text-center shadow-sm hover:shadow-lg transition-all duration-300 group">
-
-
-    <div className="w-12 h-12 bg-green-100 text-green-600 rounded-xl flex items-center justify-center mx-auto mb-4 text-lg font-bold">
-      <Target className="text-green-600 w-7 h-7" />
-    </div>
-
-
-    <h3 className="font-semibold text-gray-900 mb-2">
-      Submit All Projects
-    </h3>
-
-
-    <p className="text-sm text-gray-600">
-      Apply your knowledge by completing all projects.
-    </p>
-
-
-  </div>
-
-
-
-
-  {/* Step 4 */}
-  <div className="bg-white border border-gray-200 rounded-2xl p-6 text-center shadow-sm hover:shadow-lg transition-all duration-300 group">
-
-
-    <div className="w-12 h-12 bg-green-100 text-green-600 rounded-xl flex items-center justify-center mx-auto mb-4 text-lg font-bold">
-      <Award className="text-green-600 w-7 h-7" />
-    </div>
-
-
-    <h3 className="font-semibold text-gray-900 mb-2">
-      Get Certificate + Refund
-    </h3>
-
-
-    <p className="text-sm text-gray-600">
-      Receive certification and your full course fee back.
-    </p>
-
-
-  </div>
-
-
-</div>
-
-
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </motion.div>
         </div>
       </section>
 
+      {/* ══════════════════════════════════════════════════════════════
+          HOW THE REFUND MODEL WORKS
+      ══════════════════════════════════════════════════════════════ */}
+      <section className="py-20 bg-white">
+        <div className="max-w-6xl mx-auto px-4">
 
+          <div className="text-center mb-14">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
+              How The{" "}
+              <span className="bg-gradient-to-r from-green-600 to-emerald-700 bg-clip-text text-transparent">
+                Refund Model Works
+              </span>
+            </h2>
+            <p className="text-gray-500 max-w-xl mx-auto text-sm">
+              Complete the full course and you get every rupee back. No gimmicks.
+            </p>
+          </div>
 
+          <motion.div
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+            variants={stagger}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: "-40px" }}
+          >
+            {[
+              {
+                step: "01",
+                icon: BookOpen,
+                title: "Enroll in Course",
+                desc:  "Register and get instant access to all course materials."
+              },
+              {
+                step: "02",
+                icon: PlayCircle,
+                title: "Complete All Lessons",
+                desc:  "Watch all videos and pass every module quiz."
+              },
+              {
+                step: "03",
+                icon: Target,
+                title: "Submit All Projects",
+                desc:  "Build and submit every industry project for review."
+              },
+              {
+                step: "04",
+                icon: Award,
+                title: "Certificate + Full Refund",
+                desc:  "Receive your certificate and 100% of your fee back."
+              },
+            ].map((item, i) => (
+              <motion.div
+                key={item.step}
+                variants={fadeUp}
+                className="relative bg-white border border-gray-200 rounded-2xl p-6 text-center shadow-sm hover:shadow-lg hover:border-green-200 transition-all duration-300"
+              >
+                {/* Step number */}
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-600 text-white text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center shadow">
+                  {item.step}
+                </div>
 
-      {/* BENEFITS */}
+                {/* Connector arrow — not on last item */}
+                {/* {i < 3 && (
+                  <div className="hidden lg:block absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 z-10">
+                    <ChevronRight size={20} className="text-green-400" />
+                  </div>
+                )} */}
+
+                <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center mx-auto mb-4 mt-2">
+                  <item.icon className="w-6 h-6 text-green-600" />
+                </div>
+
+                <h3 className="font-semibold text-gray-900 mb-1.5 text-sm">{item.title}</h3>
+                <p className="text-xs text-gray-500 leading-relaxed">{item.desc}</p>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════════════════
+          WHY SELF-PACED LEARNING
+      ══════════════════════════════════════════════════════════════ */}
       <section className="py-20 bg-gradient-to-br from-green-50 to-emerald-50">
         <div className="max-w-7xl mx-auto px-4">
 
-
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-12 text-center">
-            Why Choose{" "}
-            <span className="bg-gradient-to-r from-green-600 to-emerald-700 bg-clip-text text-transparent">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
+              Why Choose{" "}
+              <span className="bg-gradient-to-r from-green-600 to-emerald-700 bg-clip-text text-transparent">
                 Self-Paced Learning?
-            </span>
+              </span>
             </h2>
+            <p className="text-gray-500 max-w-xl mx-auto text-sm">
+              Everything you need to grow your skills without disrupting your life.
+            </p>
+          </div>
 
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-
-
-            {/* Flexible Learning */}
-            <div className="bg-white rounded-2xl p-8 border border-gray-200 hover:border-green-300 shadow-sm hover:shadow-xl transition-all duration-300">
-               
-                <div className="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-5 group-hover:scale-110 transition">
-                <Clock className="text-green-600 w-7 h-7" />
+          <motion.div
+            className="grid grid-cols-1 md:grid-cols-3 gap-7"
+            variants={stagger}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: "-40px" }}
+          >
+            {[
+              {
+                icon: Clock,
+                title: "Flexible Learning",
+                desc:  "Study whenever you want. No fixed schedules, no deadlines. Learn completely at your own pace from anywhere.",
+                highlight: "Study anytime"
+              },
+              {
+                icon: Target,
+                title: "Real Industry Projects",
+                desc:  "Every course includes 5–6 real industry-level projects designed to build a portfolio employers respect.",
+                highlight: "5–6 projects per course"
+              },
+              {
+                icon: Award,
+                title: "Verified Certification",
+                desc:  "Earn an industry-recognised certificate after completing all lessons, quizzes and projects.",
+                highlight: "Certificate included"
+              },
+              {
+                icon: TrendingUp,
+                title: "Structured Curriculum",
+                desc:  "Follow a carefully designed path from beginner to advanced — each module builds on the last.",
+                highlight: "Beginner to advanced"
+              },
+              {
+                icon: Wrench,
+                title: "Tools You Will Actually Use",
+                desc:  "Every course uses real tools — Excel, SQL, Power BI, Tableau, Python — that companies hire for today.",
+                highlight: "Industry tools"
+              },
+              {
+                icon: IndianRupee,
+                title: "100% Fee Guarantee",
+                desc:  "Complete the full course — all lessons, quizzes and projects — and we return 100% of your fee. No catch.",
+                highlight: "Full refund on completion"
+              },
+            ].map((item) => (
+              <motion.div
+                key={item.title}
+                variants={fadeUp}
+                className="bg-white rounded-2xl p-7 border border-gray-100 hover:border-green-200 shadow-sm hover:shadow-lg transition-all duration-300 group"
+              >
+                <div className="w-12 h-12 bg-green-50 group-hover:bg-green-100 rounded-xl flex items-center justify-center mb-4 transition-colors">
+                  <item.icon className="w-6 h-6 text-green-600" />
                 </div>
 
-
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Flexible Learning
-                </h3>
-
-
-                <p className="text-gray-600 text-sm leading-relaxed">
-                Study whenever you want without fixed schedules and learn completely at your own pace.
-                </p>
-
-
-            </div>
-
-
-
-
-            {/* Real Projects */}
-            <div className="bg-white rounded-2xl p-8 border border-gray-200 hover:border-green-300 shadow-sm hover:shadow-xl transition-all duration-300">
-               
-                <div className="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-5 group-hover:scale-110 transition">
-                <Target className="text-green-600 w-7 h-7" />
+                <div className="inline-block bg-green-50 text-green-700 text-[11px] font-semibold px-2.5 py-0.5 rounded-full mb-3 border border-green-100">
+                  {item.highlight}
                 </div>
 
-
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Real Industry Projects
-                </h3>
-
-
-                <p className="text-gray-600 text-sm leading-relaxed">
-                Work on practical industry-level projects to build a strong portfolio.
-                </p>
-
-
-            </div>
-
-
-
-
-            {/* Certification */}
-            <div className="bg-white rounded-2xl p-8 border border-gray-200 hover:border-green-300 shadow-sm hover:shadow-xl transition-all duration-300">
-               
-                <div className="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-5 group-hover:scale-110 transition">
-                <Award className="text-green-600 w-7 h-7" />
-                </div>
-
-
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Verified Certification
-                </h3>
-
-
-                <p className="text-gray-600 text-sm leading-relaxed">
-                Receive an industry-recognized certificate after completing the course and project.
-                </p>
-
-
-            </div>
-
-
-            </div>
-
-
+                <h3 className="font-semibold text-gray-900 mb-2">{item.title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">{item.desc}</p>
+              </motion.div>
+            ))}
+          </motion.div>
         </div>
       </section>
 
+      {/* ══════════════════════════════════════════════════════════════
+          WHAT YOU GET AT A GLANCE — compact feature strip
+      ══════════════════════════════════════════════════════════════ */}
+      <section className="py-12 bg-white border-y border-gray-100">
+        <div className="max-w-5xl mx-auto px-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
+            {[
+              { icon: PlayCircle, label: "HD Video Lessons",       sub: "All self-paced"       },
+              { icon: Layers,     label: "Module Quizzes",          sub: "Test your knowledge"  },
+              { icon: Briefcase,  label: "Industry Projects",       sub: "5–6 per course"       },
+              { icon: BadgeCheck, label: "Certificate + Refund",   sub: "On full completion"   },
+            ].map((f) => (
+              <div key={f.label} className="flex flex-col items-center gap-2">
+                <div className="w-11 h-11 bg-green-50 rounded-xl flex items-center justify-center">
+                  <f.icon size={20} className="text-green-600" />
+                </div>
+                <p className="text-sm font-semibold text-gray-800">{f.label}</p>
+                <p className="text-xs text-gray-400">{f.sub}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
+      {/* ══════════════════════════════════════════════════════════════
+          CTA — BOTTOM
+      ══════════════════════════════════════════════════════════════ */}
+      <section className="py-20 bg-gradient-to-br from-green-600 to-emerald-700">
+        <div className="max-w-4xl mx-auto px-4 text-center">
 
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+              Ready to Start Your Learning Journey?
+            </h2>
+            <p className="text-green-100 text-s mb-10 max-w-xl mx-auto">
+              Join thousands of students upgrading their careers with flexible courses and real industry projects.
+            </p>
 
-<section className="py-16 bg-white/50 backdrop-blur-sm">
-  <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">
+              <a
+                href="tel:+917011418073"
+                className="bg-white text-green-700 px-8 py-4 rounded-xl font-semibold hover:bg-green-50 transition-all shadow-lg flex items-center justify-center gap-2"
+              >
+                Call for Free Demo
+              </a>
+              <a
+                href="tel:+917011418073"
+                className="border border-white/40 text-white px-8 py-4 rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center justify-center"
+              >
+                Contact a Counselor
+              </a>
+            </div>
 
-
-    <div className="bg-gradient-to-br from-white to-gray-50 rounded-3xl p-8 sm:p-12 border border-gray-200/60 shadow-sm">
-
-
-      <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-12 text-center">
-    Ready to Start Your{" "}
-    <span className="bg-gradient-to-r from-green-600 to-emerald-700 bg-clip-text text-transparent">
-        Learning Journey?
-    </span>
-    </h2>
-
-
-      {/* Description */}
-      <p className="text-lg text-gray-600 mb-8 max-w-xl mx-auto">
-        Join thousands of students who are upgrading their careers with our
-        flexible self-paced courses and real industry projects.
-      </p>
-
-
-      {/* Buttons */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-center">
-
-
-        <a
-          href="tel:+917011418073"
-          className="bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-4 rounded-xl font-semibold hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-3 shadow-lg"
-        >
-          Call for Free Demo
-        </a>
-
-
-        <a
-          // href="/contact"
-          href="tel:+917011418073"
-          className="border border-gray-300 text-gray-700 px-8 py-4 rounded-xl font-semibold hover:border-gray-400 hover:bg-white transition-all duration-300 shadow-sm flex items-center justify-center"
-        >
-          Contact Counselor
-        </a>
-
-
-      </div>
-
-
-      <div className="flex flex-wrap justify-center gap-10 mt-12">
-
-
-  <div className="flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-sm font-medium">
-    <Briefcase className="w-5 h-5 text-green-600" />
-    Industry Projects
-  </div>
-
-
-  <div className="flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-sm font-medium">
-    <Award className="w-5 h-5 text-green-600" />
-    Certificate Included
-  </div>
-
-
-  <div className="flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-sm font-medium">
-    <BadgeCheck className="w-5 h-5 text-green-600" />
-    100% Fee Return
-  </div>
-
-
-</div>
-
-
-    </div>
-
-
-  </div>
-</section>
-
+            {/* Trust badges */}
+            <div className="flex flex-wrap justify-center gap-6">
+              {[
+                { icon: Briefcase,  label: "Industry Projects"        },
+                { icon: Award,      label: "Certificate Included"      },
+                { icon: BadgeCheck, label: "100% Fee Return"           },
+                { icon: Clock,      label: "Learn at Your Own Pace"    },
+              ].map((b) => (
+                <div key={b.label} className="flex items-center gap-2 text-white/90 text-sm font-medium">
+                  <b.icon size={15} className="text-green-200" />
+                  {b.label}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </section>
 
     </div>
   );

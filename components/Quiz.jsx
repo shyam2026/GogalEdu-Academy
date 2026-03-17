@@ -1,4 +1,5 @@
 // components/Quiz.jsx
+
 // ─────────────────────────────────────────────────────────────────
 // Module Quiz Component
 //
@@ -6,45 +7,89 @@
 //   questions     — Array of { question, options, answer } from spcourses.js
 //   moduleIndex   — 0-based index of the module this quiz belongs to
 //   passedQuizzes — Array of moduleIndex values that have been passed
-//   onPass        — Callback(moduleIndex) when student passes the quiz
+//   quizScore     — Saved score % for this module (shown in passed badge)
+//   onPass        — Callback(moduleIndex, score) when student passes ≥60%
 //
 // PASS CONDITION: ≥ 60% correct answers
+//
 // BEHAVIOR:
-//   • If already passed → shows green "Quiz Passed" badge
+//   • If no questions → shows "No quiz" message
+//   • If already passed → shows green badge with saved score %
 //   • Otherwise → shows questions with radio buttons
-//   • On submit → shows score, pass/fail feedback
-//   • On fail   → shows Retry button to reset answers
+//   • Submit button disabled until ALL questions answered
+//   • On submit:
+//       PASS (≥60%) → shows score banner, next module unlocks
+//       FAIL (<60%) → shows score banner + Retake button
+//       ⚠️  NEVER reveals which answers were correct/wrong
 // ─────────────────────────────────────────────────────────────────
 
 "use client";
 
 import { useState } from "react";
-import { CheckCircle, XCircle, RefreshCw, Trophy } from "lucide-react";
+import { RefreshCw, Trophy } from "lucide-react";
 
-export default function Quiz({ questions = [], moduleIndex, passedQuizzes = [], onPass }) {
+export default function Quiz({
+  questions     = [],
+  moduleIndex,
+  passedQuizzes = [],
+  quizScore,          // saved score % to display in the passed badge
+  onPass              // Callback(moduleIndex, score)
+}) {
 
-  const [answers,   setAnswers]   = useState({});  // { questionIndex: selectedOptionIndex }
+  const [answers,   setAnswers]   = useState({});
   const [submitted, setSubmitted] = useState(false);
-  const [score,     setScore]     = useState(0);   // percentage 0-100
+  const [score,     setScore]     = useState(0);
 
-  // If already passed, just show success badge
+  // ── NO QUESTIONS GUARD ────────────────────────────────────────
+  if (!questions || questions.length === 0) {
+    return (
+      <div className="mt-4 text-sm text-gray-400 text-center py-3">
+        No quiz for this module.
+      </div>
+    );
+  }
+
+  // ── ALREADY PASSED ────────────────────────────────────────────
   const alreadyPassed = passedQuizzes.includes(moduleIndex);
 
-  // ── SUBMIT QUIZ ──────────────────────────────────────────────
+  if (alreadyPassed) {
+    return (
+      <div className="mt-4 flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl p-4">
+        <Trophy className="text-green-600 flex-shrink-0" size={22} />
+        <div className="flex-1">
+          <p className="font-semibold text-green-700 text-sm">Module Quiz Passed!</p>
+          <p className="text-green-600 text-xs">Next module is now unlocked.</p>
+        </div>
+        {quizScore !== undefined ? (
+          <div className="flex flex-col items-center justify-center bg-green-100 border border-green-300 rounded-xl px-4 py-2 flex-shrink-0">
+            <span className="text-green-700 font-bold text-xl leading-none">{quizScore}%</span>
+            <span className="text-green-600 text-xs mt-0.5">Your Score</span>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center bg-green-100 border border-green-300 rounded-xl px-4 py-2 flex-shrink-0">
+            <span className="text-green-700 font-bold text-xl leading-none">✓</span>
+            <span className="text-green-600 text-xs mt-0.5">Passed</span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── ALL QUESTIONS ANSWERED CHECK ─────────────────────────────
+  const allAnswered = questions.every((_, i) => answers[i] !== undefined);
+
+  // ── SUBMIT QUIZ ───────────────────────────────────────────────
   const handleSubmit = () => {
-    // Count correct answers
+    if (!allAnswered) return;
     let correct = 0;
     questions.forEach((q, i) => {
       if (answers[i] === q.answer) correct++;
     });
-
     const percentage = Math.round((correct / questions.length) * 100);
     setScore(percentage);
     setSubmitted(true);
-
-    // Pass threshold: 60%
-    if (percentage >= 60) {
-      onPass(moduleIndex);
+    if (percentage >= 60 && typeof onPass === "function") {
+      onPass(moduleIndex, percentage);
     }
   };
 
@@ -57,36 +102,10 @@ export default function Quiz({ questions = [], moduleIndex, passedQuizzes = [], 
 
   const passed = score >= 60;
 
-  // ── ALL QUESTIONS ANSWERED CHECK ─────────────────────────────
-  const allAnswered = questions.length > 0 &&
-    questions.every((_, i) => answers[i] !== undefined);
-
-  // ── ALREADY PASSED STATE ──────────────────────────────────────
-  if (alreadyPassed) {
-    return (
-      <div className="mt-4 flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl p-4">
-        <Trophy className="text-green-600 flex-shrink-0" size={22} />
-        <div>
-          <p className="font-semibold text-green-700 text-sm">Module Quiz Passed!</p>
-          <p className="text-green-600 text-xs">Next module is now unlocked.</p>
-        </div>
-      </div>
-    );
-  }
-
-  // ── NO QUESTIONS ──────────────────────────────────────────────
-  if (!questions || questions.length === 0) {
-    return (
-      <div className="mt-4 text-sm text-gray-400 text-center py-3">
-        No quiz for this module.
-      </div>
-    );
-  }
-
   return (
     <div className="mt-4 border border-gray-200 rounded-xl overflow-hidden">
 
-      {/* ── Quiz Header ─────────────────────────────────────── */}
+      {/* ── Quiz Header ───────────────────────────────────────── */}
       <div className="bg-gradient-to-r from-green-600 to-green-700 px-5 py-3 flex items-center gap-2">
         <Trophy size={18} className="text-white" />
         <span className="font-semibold text-white text-sm">
@@ -100,36 +119,31 @@ export default function Quiz({ questions = [], moduleIndex, passedQuizzes = [], 
         {/* ── Questions ─────────────────────────────────────── */}
         {questions.map((q, i) => {
           const selected = answers[i];
-          const isCorrect = submitted && selected === q.answer;
-          const isWrong   = submitted && selected !== undefined && selected !== q.answer;
-
           return (
             <div key={i} className="space-y-2">
               <p className="font-medium text-gray-800 text-sm">
                 {i + 1}. {q.question}
               </p>
-
               <div className="space-y-2">
                 {q.options.map((option, j) => {
-                  // Determine styling for each option after submit
-                  let optionStyle = "border-gray-200 bg-white hover:border-green-400 hover:bg-green-50";
-                  if (!submitted && selected === j) {
-                    optionStyle = "border-green-500 bg-green-50";
-                  }
-                  if (submitted) {
-                    if (j === q.answer) {
-                      optionStyle = "border-green-500 bg-green-50"; // Always show correct
-                    } else if (selected === j && j !== q.answer) {
-                      optionStyle = "border-red-400 bg-red-50";     // Wrong selection
-                    } else {
-                      optionStyle = "border-gray-200 bg-white opacity-60";
-                    }
+                  // ── Option style — NEVER reveals correct answer ─
+                  let optionStyle;
+                  if (!submitted) {
+                    optionStyle = selected === j
+                      ? "border-green-500 bg-green-50 cursor-pointer"
+                      : "border-gray-200 bg-white hover:border-green-400 hover:bg-green-50 cursor-pointer";
+                  } else {
+                    // Post-submit: student's pick shown in neutral blue, rest dimmed
+                    // No green = correct, no red = wrong — answers are hidden
+                    optionStyle = selected === j
+                      ? "border-blue-400 bg-blue-50 cursor-default"
+                      : "border-gray-200 bg-white opacity-50 cursor-default";
                   }
 
                   return (
                     <label
                       key={j}
-                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition text-sm ${optionStyle} ${submitted ? "cursor-default" : ""}`}
+                      className={`flex items-center gap-3 p-3 rounded-lg border transition text-sm ${optionStyle}`}
                     >
                       <input
                         type="radio"
@@ -140,14 +154,7 @@ export default function Quiz({ questions = [], moduleIndex, passedQuizzes = [], 
                         className="accent-green-600"
                       />
                       <span className="flex-1 text-gray-700">{option}</span>
-
-                      {/* Show correct/wrong icons after submit */}
-                      {submitted && j === q.answer && (
-                        <CheckCircle size={16} className="text-green-600 flex-shrink-0" />
-                      )}
-                      {submitted && selected === j && j !== q.answer && (
-                        <XCircle size={16} className="text-red-500 flex-shrink-0" />
-                      )}
+                      {/* No icons — answers never revealed */}
                     </label>
                   );
                 })}
@@ -156,45 +163,47 @@ export default function Quiz({ questions = [], moduleIndex, passedQuizzes = [], 
           );
         })}
 
-        {/* ── Result Banner (after submit) ──────────────────── */}
+        {/* ── Result Banner ─────────────────────────────────── */}
         {submitted && (
           <div className={`rounded-xl p-4 flex items-center gap-3 ${
-            passed
-              ? "bg-green-50 border border-green-200"
-              : "bg-red-50 border border-red-200"
+            passed ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"
           }`}>
-            {passed
-              ? <Trophy size={22} className="text-green-600 flex-shrink-0" />
-              : <XCircle size={22} className="text-red-500 flex-shrink-0" />
-            }
+            {/* Score circle */}
+            <div className={`w-14 h-14 rounded-full flex flex-col items-center justify-center flex-shrink-0 font-bold ${
+              passed ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+            }`}>
+              <span className="text-lg leading-none">{score}%</span>
+              <span className="text-xs font-normal leading-none mt-0.5">{passed ? "Pass" : "Fail"}</span>
+            </div>
+
             <div className="flex-1">
               <p className={`font-semibold text-sm ${passed ? "text-green-700" : "text-red-600"}`}>
                 {passed
-                  ? `Excellent! You scored ${score}% — Module Passed! 🎉`
-                  : `You scored ${score}% — Need 60% to pass. Try again!`
+                  ? `You scored ${score}% — Module Passed! 🎉`
+                  : `You scored ${score}% — Need at least 60% to pass.`
                 }
               </p>
-              {passed && (
-                <p className="text-green-600 text-xs mt-0.5">
-                  Next module is now unlocked.
-                </p>
-              )}
+              <p className={`text-xs mt-0.5 ${passed ? "text-green-600" : "text-red-500"}`}>
+                {passed
+                  ? "Next module is now unlocked."
+                  : "Review the lessons and retake the quiz. Correct answers are not shown."
+                }
+              </p>
             </div>
 
-            {/* Retry button on failure */}
             {!passed && (
               <button
                 onClick={handleRetry}
-                className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+                className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition flex-shrink-0"
               >
                 <RefreshCw size={13} />
-                Retry
+                Retake
               </button>
             )}
           </div>
         )}
 
-        {/* ── Submit Button (before submit) ─────────────────── */}
+        {/* ── Submit Button ─────────────────────────────────── */}
         {!submitted && (
           <button
             onClick={handleSubmit}
@@ -205,9 +214,13 @@ export default function Quiz({ questions = [], moduleIndex, passedQuizzes = [], 
                 : "bg-gray-100 text-gray-400 cursor-not-allowed"
             }`}
           >
-            {allAnswered ? "Submit Quiz" : `Answer all ${questions.length} question${questions.length !== 1 ? "s" : ""} to submit`}
+            {allAnswered
+              ? "Submit Quiz"
+              : `Answer all ${questions.length} question${questions.length !== 1 ? "s" : ""} to submit`
+            }
           </button>
         )}
+
       </div>
     </div>
   );

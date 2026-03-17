@@ -1,3 +1,5 @@
+// db/CourseData.js
+
 export const CourseData = [
   {
     id: 1,

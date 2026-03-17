@@ -1,12 +1,19 @@
 // components/CourseHero.jsx
+
 // ─────────────────────────────────────────────────────────────────
 // Course Hero — Top section of the course detail page
 //
 // DATA SOURCE: All content comes from spcourses.js → course.hero
 //
 // SECTIONS:
-//   • Left: Tags, Title, Subtitle, Stats cards, Progress bar
-//   • Right: Course image, Pricing card, Enroll button
+//   • Left:  Tags, Title, Subtitle, Stats cards, Progress bar, Feature badges
+//   • Right: Course image, Pricing card, Enroll button, What you get
+//
+// CHANGES:
+//   • "Lifetime Access" badge removed (per course spec)
+//   • "30-Day Money-Back Guarantee" text removed (per course spec)
+//   • "Microsoft Certified" tag support added
+//   • Progress bar reflects REAL watch-time (passed from page.jsx)
 //
 // PROPS:
 //   course   — Full course object from spcourses[slug]
@@ -15,23 +22,26 @@
 
 "use client";
 
-import { BookOpen, Star, Users, Target, Clock, PlayCircle, ShieldCheck, Award, Wifi } from "lucide-react";
+import {
+  BookOpen, Star, Users, Target, Clock,
+  PlayCircle, ShieldCheck, Award, Wifi
+} from "lucide-react";
 
 // Map icon strings (from spcourses.js tags) to Lucide components
 const ICON_MAP = {
-  target:  <Target   className="w-4 h-4" />,
-  clock:   <Clock    className="w-4 h-4" />,
-  online:  <PlayCircle className="w-4 h-4" />,
-  award:   <Award    className="w-4 h-4" />,
-  wifi:    <Wifi     className="w-4 h-4" />
+  target:  <Target      className="w-4 h-4" />,
+  clock:   <Clock       className="w-4 h-4" />,
+  online:  <PlayCircle  className="w-4 h-4" />,
+  award:   <Award       className="w-4 h-4" />,
+  wifi:    <Wifi        className="w-4 h-4" />
 };
 
-// Tag pill colors by index (cycles if more than 3 tags)
+// Tag pill colors — cycles by index
 const TAG_COLORS = [
-  "bg-green-100 text-green-700",
-  "bg-green-100 text-green-700",
+  "bg-green-100  text-green-700",
+  "bg-blue-100   text-blue-700",
   "bg-purple-100 text-purple-700",
-  "bg-blue-100 text-blue-700"
+  "bg-amber-100  text-amber-700"
 ];
 
 export default function CourseHero({ course, progress = 0 }) {
@@ -45,18 +55,19 @@ export default function CourseHero({ course, progress = 0 }) {
     <section className="pt-28 pb-12 bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 grid lg:grid-cols-3 gap-10">
 
-        {/* ── LEFT SIDE ─────────────────────────────────────── */}
+        {/* ── LEFT SIDE ──────────────────────────────────────────── */}
         <div className="lg:col-span-2">
 
-          {/* ── TAGS ──────────────────────────────────────────
-              Tags are defined in spcourses.js → hero.tags
-              ADD/REMOVE tags there; they render here automatically
-          ─────────────────────────────────────────────────── */}
+          {/* ── TAGS ──────────────────────────────────────────────────
+              Defined in spcourses.js → hero.tags
+              ADD/REMOVE tags there; they render here automatically.
+              Supports icons: target, clock, online, award, wifi
+          ─────────────────────────────────────────────────────────── */}
           <div className="flex flex-wrap gap-2 mb-5">
             {hero.tags?.map((tag, i) => (
               <span
                 key={i}
-                className={`flex items-center gap-1.5 whitespace-nowrap ${TAG_COLORS[i] || TAG_COLORS[0]} px-4 py-1 rounded-full text-sm font-medium`}
+                className={`flex items-center gap-1.5 whitespace-nowrap ${TAG_COLORS[i % TAG_COLORS.length]} px-4 py-1 rounded-full text-sm font-medium`}
               >
                 {ICON_MAP[tag.icon] || <Target className="w-4 h-4" />}
                 {tag.label}
@@ -64,23 +75,23 @@ export default function CourseHero({ course, progress = 0 }) {
             ))}
           </div>
 
-          {/* ── COURSE TITLE ──────────────────────────────────
+          {/* ── COURSE TITLE ──────────────────────────────────────────
               Defined in spcourses.js → hero.title
-          ─────────────────────────────────────────────────── */}
+          ─────────────────────────────────────────────────────────── */}
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
             {hero.title}
           </h1>
 
-          {/* ── SUBTITLE ─────────────────────────────────────
+          {/* ── SUBTITLE ──────────────────────────────────────────────
               Defined in spcourses.js → hero.subtitle
-          ─────────────────────────────────────────────────── */}
+          ─────────────────────────────────────────────────────────── */}
           <p className="text-gray-600 text-lg mb-8 max-w-xl leading-relaxed">
             {hero.subtitle}
           </p>
 
-          {/* ── STATS CARDS ───────────────────────────────────
+          {/* ── STATS CARDS ───────────────────────────────────────────
               Values defined in spcourses.js → hero.stats
-          ─────────────────────────────────────────────────── */}
+          ─────────────────────────────────────────────────────────── */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
 
             {/* Rating */}
@@ -116,10 +127,11 @@ export default function CourseHero({ course, progress = 0 }) {
             </div>
           </div>
 
-          {/* ── PROGRESS BAR ──────────────────────────────────
-              Progress is calculated in page.jsx based on video watch time
-              Updates in real-time as student watches videos
-          ─────────────────────────────────────────────────── */}
+          {/* ── PROGRESS BAR ──────────────────────────────────────────
+              Calculated in page.jsx based on REAL accumulated watch time.
+              Does NOT increase by scrubbing — only by actual playback.
+              Updates in real-time as student watches.
+          ─────────────────────────────────────────────────────────── */}
           <div className="bg-white p-5 rounded-xl border shadow-sm">
             <div className="flex justify-between items-center mb-2">
               <span className="font-semibold text-gray-800 text-sm">Course Progress</span>
@@ -136,34 +148,39 @@ export default function CourseHero({ course, progress = 0 }) {
             {progressClamped === 100 && (
               <p className="text-xs text-green-600 font-medium mt-2 flex items-center gap-1">
                 <Award size={13} />
-                Course Complete! Your certificate is ready.
+                Course Complete! Your Microsoft Certified Certificate is ready.
               </p>
             )}
           </div>
 
-          {/* ── COURSE FEATURE BADGES ─────────────────────────
-              Values from spcourses.js → course.details
-          ─────────────────────────────────────────────────── */}
+          {/* ── COURSE FEATURE BADGES ─────────────────────────────────
+              Only shown for features that are true in spcourses.js
+              IMPORTANT: "Lifetime Access" is intentionally excluded.
+              `details.lifetimeAccess` is false in this course.
+          ─────────────────────────────────────────────────────────── */}
           <div className="flex flex-wrap gap-3 mt-5">
             {course.details?.certificate && (
               <span className="flex items-center gap-1.5 text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-full">
-                <Award size={13} className="text-green-600" /> Certificate Included
+                <Award size={13} className="text-green-600" />
+                Microsoft Certified Certificate
               </span>
             )}
-            {course.details?.lifetimeAccess && (
-              <span className="flex items-center gap-1.5 text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-full">
-                <Clock size={13} className="text-green-600" /> Lifetime Access
-              </span>
-            )}
+            {/* NOTE: lifetimeAccess badge is intentionally NOT rendered.
+                Do not add it back here. */}
             {course.details?.mobileAccess && (
               <span className="flex items-center gap-1.5 text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-full">
-                <Wifi size={13} className="text-green-600" /> Mobile Accessible
+                <Wifi size={13} className="text-green-600" />
+                Mobile Accessible
               </span>
             )}
+            <span className="flex items-center gap-1.5 text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-full">
+              <ShieldCheck size={13} className="text-green-600" />
+              100% Fee Return Guarantee
+            </span>
           </div>
         </div>
 
-        {/* ── RIGHT SIDE ENROLL CARD ─────────────────────────── */}
+        {/* ── RIGHT SIDE ENROLL CARD ───────────────────────────────── */}
         <div>
           <div className="bg-white rounded-2xl shadow-lg border overflow-hidden lg:sticky lg:top-24">
 
@@ -174,19 +191,15 @@ export default function CourseHero({ course, progress = 0 }) {
                 alt={hero.title}
                 className="w-full h-48 object-cover"
                 onError={(e) => {
-                  // Fallback if image not found
                   e.target.style.display = "none";
                   e.target.nextSibling.style.display = "flex";
                 }}
               />
-              {/* Fallback placeholder */}
-              <div
-                className="hidden w-full h-48 bg-gradient-to-br from-green-600 to-green-800 items-center justify-center"
-              >
+              {/* Image fallback */}
+              <div className="hidden w-full h-48 bg-gradient-to-br from-green-600 to-green-800 items-center justify-center">
                 <BookOpen size={48} className="text-white/60" />
               </div>
 
-              {/* Discount badge */}
               {hero.pricing.discount && (
                 <div className="absolute top-3 right-3 bg-green-700 text-white text-xs font-bold px-3 py-1 rounded-full shadow">
                   {hero.pricing.discount}
@@ -194,9 +207,9 @@ export default function CourseHero({ course, progress = 0 }) {
               )}
             </div>
 
-            {/* ── PRICING ───────────────────────────────────────
+            {/* ── PRICING ───────────────────────────────────────────────
                 Prices defined in spcourses.js → hero.pricing
-            ─────────────────────────────────────────────────── */}
+            ─────────────────────────────────────────────────────────── */}
             <div className="p-6 text-center">
               <div className="text-3xl font-bold text-green-600 mb-1">
                 ₹{hero.pricing.discountPrice}
@@ -207,38 +220,42 @@ export default function CourseHero({ course, progress = 0 }) {
                 </div>
               )}
 
-              {/* ── ENROLL BUTTON ─────────────────────────────
-                  Connect this to your payment/enrollment flow
-              ─────────────────────────────────────────────── */}
+              {/* Enroll button */}
               <button className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition">
                 <BookOpen size={18} />
                 Enroll Now
               </button>
 
-              <p className="text-xs text-gray-400 mt-3">30-Day Money-Back Guarantee</p>
+              {/* NOTE: "30-Day Money-Back Guarantee" is intentionally removed.
+                  The refund model is: complete course → submit projects →
+                  get admin approval → request 100% refund (not a 30-day guarantee).
+                  Do not add it back here. */}
             </div>
 
-            {/* What you get summary */}
+            {/* ── WHAT YOU GET SUMMARY ──────────────────────────────────
+                Shows a quick bullet list of course benefits.
+                "Lifetime Access" is intentionally excluded.
+            ─────────────────────────────────────────────────────────── */}
             <div className="border-t px-6 py-4 space-y-2">
               {course.details?.certificate && (
                 <div className="flex items-center gap-2 text-xs text-gray-600">
                   <Award size={13} className="text-green-600" />
-                  Industry Certificate on completion
+                  Microsoft Certified Certificate on completion
                 </div>
               )}
-              {course.details?.lifetimeAccess && (
-                <div className="flex items-center gap-2 text-xs text-gray-600">
-                  <Clock size={13} className="text-green-600" />
-                  Lifetime access to all content
-                </div>
-              )}
+              {/* Lifetime Access intentionally omitted */}
               <div className="flex items-center gap-2 text-xs text-gray-600">
                 <ShieldCheck size={13} className="text-green-600" />
-                100% fee return guarantee
+                100% fee return on course completion
+              </div>
+              <div className="flex items-center gap-2 text-xs text-gray-600">
+                <Target size={13} className="text-green-600" />
+                5 real-world industry-level projects
               </div>
             </div>
           </div>
         </div>
+
       </div>
     </section>
   );
