@@ -20,14 +20,26 @@
 //     • `savedWatched` prop  — restores accumulated time when reopening
 //
 // ── PROPS ─────────────────────────────────────────────────────────
-//   src           — Video file path (e.g. /videos/excel1.mp4)
-//   onClose       — Called when player closes
-//   onTimeUpdate  — (accumulatedWatched, duration, currentPosition)
-//                   Called periodically while playing
-//   onEnded       — Called when video reaches its natural end
-//   savedTime     — Resume seek position in seconds (from last close)
-//   savedWatched  — Previously accumulated real watch time (seconds)
-//   watermarkText — Text shown as diagonal watermark overlay
+//   src            — Video file path (e.g. /videos/excel1.mp4)
+//   onClose        — Called when player closes
+//   onTimeUpdate   — (accumulatedWatched, duration, currentPosition)
+//                    Called periodically while playing
+//   onComplete     — () → void
+//                    Called ONCE when accumulated wall-clock watch time
+//                    reaches (watchThreshold × duration). Seeking /
+//                    scrubbing does NOT count — only real play time.
+//                    Guaranteed to fire at most once per video open;
+//                    will not re-fire if the video is rewatched after
+//                    completion (alreadyCompleted should be true then).
+//   alreadyCompleted — boolean, default false
+//                    If true, the completion badge is shown immediately
+//                    and onComplete will NOT fire again.
+//   onEnded        — Called when video reaches its natural end
+//   savedTime      — Resume seek position in seconds (from last close)
+//   savedWatched   — Previously accumulated real watch time (seconds)
+//   watchThreshold — Fraction of duration required to mark complete.
+//                    Default 0.90 = 90%. Must actually watch — no scrub.
+//   watermarkText  — Text shown as diagonal watermark overlay
 //
 // ── SECURITY FEATURES ─────────────────────────────────────────────
 //   • No right-click on video element
@@ -38,6 +50,9 @@
 //   • Diagonal watermark overlay
 //
 // ── VIDEO CONTROLS ────────────────────────────────────────────────
+//   • Restart (↺) — leftmost button; always visible; clicking it
+//     seeks to 0 and resets the wall-clock watch-time accumulator
+//     so completion can fire again if the student rewatches.
 //   • Play / Pause (click overlay or button)
 //   • ±15 second skip buttons
 //   • Seekable timeline (scrubbing changes position BUT does NOT
@@ -53,7 +68,7 @@
 
 import { useRef, useState, useEffect, useCallback } from "react";
 import {
-  X, Play, Pause,
+  X, Play, Pause, RotateCcw,
   SkipBack, SkipForward,
   Volume2, VolumeX,
   Maximize, Minimize
@@ -63,10 +78,13 @@ export default function VideoPlayer({
   src,
   onClose,
   onTimeUpdate,              // (accumulatedWatched, duration, currentPosition)
+  onComplete,                // () → called once when ≥ watchThreshold of real watch time reached
   onEnded,
-  savedTime    = 0,          // Resume seek position (seconds)
-  savedWatched = 0,          // Previously accumulated real watch time (seconds)
-  watermarkText = "GogalEdu Academy • gogaledu.com"
+  alreadyCompleted = false,  // true if this video was previously completed — shows badge immediately
+  savedTime        = 0,      // Resume seek position (seconds)
+  savedWatched     = 0,      // Previously accumulated real watch time (seconds)
+  watchThreshold   = 0.90,   // Fraction of duration required (wall-clock only). Default = 90%
+  watermarkText    = "GogalEdu Academy • gogaledu.com"
 }) {
   const videoRef    = useRef(null);
   const wrapperRef  = useRef(null);
@@ -74,53 +92,48 @@ export default function VideoPlayer({
   const hideTimer   = useRef(null);
 
   // ── WATCH TIME TRACKING REFS ────────────────────────────────────
-  // These are refs (not state) so they update without causing re-renders
-  // and so the latest values are available inside stale closures.
-  const accumulatedRef    = useRef(savedWatched); // total real playback seconds
-  const playStartWallRef  = useRef(null);         // wall-clock ms when play started (null = paused)
+  const accumulatedRef    = useRef(savedWatched);
+  const playStartWallRef  = useRef(null);
+
+  // ── COMPLETION GATE REF ─────────────────────────────────────────
+  const completedFiredRef = useRef(alreadyCompleted);
 
   // ── UI STATE ────────────────────────────────────────────────────
-  const [playing,      setPlaying]      = useState(false);
-  const [currentTime,  setCurrentTime]  = useState(0);
-  const [duration,     setDuration]     = useState(0);
-  const [volume,       setVolume]       = useState(1);
-  const [muted,        setMuted]        = useState(false);
-  const [showControls, setShowControls] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [buffered,     setBuffered]     = useState(0);
-  const [speed,        setSpeed]        = useState(1);    // playback speed
-  const [showSpeed,    setShowSpeed]    = useState(false);// speed menu open
+  const [playing,        setPlaying]        = useState(false);
+  const [currentTime,    setCurrentTime]    = useState(0);
+  const [duration,       setDuration]       = useState(0);
+  const [volume,         setVolume]         = useState(1);
+  const [muted,          setMuted]          = useState(false);
+  const [showControls,   setShowControls]   = useState(true);
+  const [isFullscreen,   setIsFullscreen]   = useState(false);
+  const [buffered,       setBuffered]       = useState(0);
+  const [speed,          setSpeed]          = useState(1);
+  const [showSpeed,      setShowSpeed]      = useState(false);
+  // ended: true after the video reaches its natural end.
+  // Used to keep the restart button visually prominent.
+  const [ended,          setEnded]          = useState(false);
+  const [completedBadge, setCompletedBadge] = useState(alreadyCompleted);
 
-  // ── RESET ACCUMULATED TIME WHEN SRC CHANGES ────────────────────
-  // IMPORTANT: Only depend on `src`, NOT `savedWatched`.
-  //
-  // Why: page.jsx passes savedWatched={lessonProgress[video].watched},
-  // which updates on every onTimeUpdate call. If savedWatched is in the
-  // dep array, this effect fires on every progress tick → resets
-  // playStartWallRef.current = null mid-session → watch time freezes
-  // after the first fraction of a second.
-  //
-  // savedWatched is only needed as the initial seed when a new video
-  // opens (src changes). After that the refs are owned by VideoPlayer.
+  // ── RESET WHEN SRC CHANGES ──────────────────────────────────────
   useEffect(() => {
-    accumulatedRef.current   = savedWatched;
-    playStartWallRef.current = null;
+    accumulatedRef.current    = savedWatched;
+    playStartWallRef.current  = null;
+    completedFiredRef.current = alreadyCompleted;
+    setCompletedBadge(alreadyCompleted);
+    setEnded(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [src]); // ← Do NOT add savedWatched here
+  }, [src]);
 
-  // ── SECURITY: Block right-click, pause on hide, fullscreen ─────
+  // ── SECURITY: right-click block, pause-on-hide, fullscreen ─────
   useEffect(() => {
     const vid = videoRef.current;
     if (!vid) return;
 
-    // Block right-click on the video element itself
     const blockCtx = (e) => e.preventDefault();
     vid.addEventListener("contextmenu", blockCtx);
 
-    // SECURITY: Pause when user switches browser tab
     const handleVisibility = () => {
       if (document.hidden && videoRef.current) {
-        // Flush any running session before pausing
         flushSession();
         videoRef.current.pause();
         setPlaying(false);
@@ -128,7 +141,6 @@ export default function VideoPlayer({
     };
     document.addEventListener("visibilitychange", handleVisibility);
 
-    // SECURITY: Pause when window loses focus (catches screen-record apps)
     const handleBlur = () => {
       if (videoRef.current) {
         flushSession();
@@ -138,10 +150,7 @@ export default function VideoPlayer({
     };
     window.addEventListener("blur", handleBlur);
 
-    // Track fullscreen changes
-    const handleFsChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
+    const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", handleFsChange);
 
     return () => {
@@ -153,86 +162,75 @@ export default function VideoPlayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── FLUSH SESSION: Add current play session to accumulated ──────
-  // Call this on pause, close, tab-hide, or window blur
+  // ── FLUSH SESSION ───────────────────────────────────────────────
   const flushSession = useCallback(() => {
     if (playStartWallRef.current !== null) {
-      const elapsedSeconds = (Date.now() - playStartWallRef.current) / 1000;
-      accumulatedRef.current += elapsedSeconds;
+      accumulatedRef.current += (Date.now() - playStartWallRef.current) / 1000;
       playStartWallRef.current = null;
     }
   }, []);
 
-  // ── VIDEO LOADED: Set duration and seek to saved position ───────
-  // NOTE: We do NOT call vid.play() here.
-  // Calling play() programmatically on remount is blocked by browser
-  // autoplay policy and throws NotSupportedError in the dev overlay.
-  // The VideoPlayer already renders a centered Play button when paused —
-  // clicking it is a real user gesture and play() always succeeds.
+  // ── VIDEO LOADED ────────────────────────────────────────────────
   const handleLoadedMetadata = () => {
     const vid = videoRef.current;
     if (!vid) return;
     setDuration(vid.duration || 0);
-    if (savedTime > 0 && savedTime < vid.duration) {
-      vid.currentTime = savedTime;
-    }
-    // No vid.play() here — user clicks the ▶ button
+    if (savedTime > 0 && savedTime < vid.duration) vid.currentTime = savedTime;
   };
 
-  // ── TIME UPDATE: Called by <video> every ~250ms while playing ───
+  // ── TIME UPDATE ─────────────────────────────────────────────────
   const handleTimeUpdate = () => {
     const vid = videoRef.current;
     if (!vid) return;
 
     setCurrentTime(vid.currentTime);
 
-    // Update buffered progress bar
     if (vid.buffered.length > 0) {
       setBuffered((vid.buffered.end(vid.buffered.length - 1) / vid.duration) * 100);
     }
 
-    // ── ACTUAL WATCH TIME CALCULATION ──────────────────────────
-    // Compute total accumulated real-time playback:
-    //   stored accumulated + current ongoing session (if playing)
     let totalWatched = accumulatedRef.current;
     if (playStartWallRef.current !== null) {
       totalWatched += (Date.now() - playStartWallRef.current) / 1000;
     }
 
-    // Report (accumulatedWatched, duration, currentPosition) to parent
-    // Parent (page.jsx) uses accumulatedWatched — NOT currentPosition —
-    // to determine if a lesson is completed.
     onTimeUpdate && onTimeUpdate(totalWatched, vid.duration, vid.currentTime);
+
+    if (
+      !completedFiredRef.current &&
+      vid.duration > 0 &&
+      totalWatched >= vid.duration * watchThreshold
+    ) {
+      completedFiredRef.current = true;
+      setCompletedBadge(true);
+      onComplete && onComplete();
+    }
   };
 
-  // ── PLAY HANDLER ─────────────────────────────────────────────────
-  // Record wall-clock start time for this session
+  // ── PLAY ────────────────────────────────────────────────────────
   const handlePlay = () => {
     playStartWallRef.current = Date.now();
     setPlaying(true);
+    setEnded(false); // clear ended flag whenever playback resumes
   };
 
-  // ── PAUSE HANDLER ────────────────────────────────────────────────
-  // Flush current session into accumulated before pausing
+  // ── PAUSE ───────────────────────────────────────────────────────
   const handlePause = () => {
     flushSession();
     setPlaying(false);
   };
 
-  // ── VIDEO ENDED ──────────────────────────────────────────────────
+  // ── VIDEO ENDED ─────────────────────────────────────────────────
   const handleVideoEnded = () => {
-    // Flush the final session on natural end
     flushSession();
     setPlaying(false);
+    setEnded(true); // mark as ended → restart button becomes prominent
     onEnded && onEnded();
   };
 
-  // ── CLOSE PLAYER: Flush session before closing ──────────────────
+  // ── CLOSE ───────────────────────────────────────────────────────
   const handleClose = useCallback(() => {
-    // If video was playing, accumulate the final session
     flushSession();
-
-    // Report final accumulated time one last time before closing
     const vid = videoRef.current;
     if (vid && onTimeUpdate) {
       onTimeUpdate(accumulatedRef.current, vid.duration, vid.currentTime);
@@ -240,20 +238,15 @@ export default function VideoPlayer({
     onClose();
   }, [flushSession, onTimeUpdate, onClose]);
 
-  // ── PLAY / PAUSE TOGGLE ─────────────────────────────────────────
+  // ── TOGGLE PLAY ─────────────────────────────────────────────────
   const togglePlay = useCallback(() => {
     const vid = videoRef.current;
     if (!vid) return;
     if (vid.paused) {
-      // play() returns a promise — catch to prevent unhandled rejection
       const p = vid.play();
       if (p && typeof p.catch === "function") {
         p.catch((err) => {
-          // AbortError = play() interrupted by a subsequent pause (fine to ignore)
-          // NotAllowedError = autoplay policy (shouldn't happen here since user clicked)
-          if (err.name !== "AbortError") {
-            console.warn("VideoPlayer play() failed:", err.name, err.message);
-          }
+          if (err.name !== "AbortError") console.warn("VideoPlayer play() failed:", err.name, err.message);
         });
       }
     } else {
@@ -261,17 +254,29 @@ export default function VideoPlayer({
     }
   }, []);
 
-  // ── SKIP ±15 SECONDS ────────────────────────────────────────────
-  // NOTE: Seeking changes the video POSITION but does NOT add to
-  // accumulated watch time. The student must still watch the content.
+  // ── RESTART ─────────────────────────────────────────────────────
+  // Seeks to 0 and resets the watch-time accumulator so the
+  // 90% completion threshold can fire again on this rewatch.
+  const handleRestart = useCallback(() => {
+    const vid = videoRef.current;
+    if (!vid) return;
+    flushSession();
+    accumulatedRef.current    = 0;       // reset accumulated watch time
+    completedFiredRef.current = false;   // allow onComplete to fire again
+    vid.currentTime           = 0;
+    setEnded(false);
+    const p = vid.play();
+    if (p && typeof p.catch === "function") p.catch(() => {});
+  }, [flushSession]);
+
+  // ── SKIP ±15s ───────────────────────────────────────────────────
   const skip = useCallback((seconds) => {
     const vid = videoRef.current;
     if (!vid) return;
     vid.currentTime = Math.max(0, Math.min(vid.currentTime + seconds, duration));
   }, [duration]);
 
-  // ── SEEK: Click on progress bar ─────────────────────────────────
-  // This also only changes position, NOT accumulated watch time.
+  // ── SEEK ────────────────────────────────────────────────────────
   const handleSeek = (e) => {
     const bar = progressRef.current;
     const vid = videoRef.current;
@@ -289,7 +294,7 @@ export default function VideoPlayer({
     setMuted(v === 0);
   };
 
-  // ── MUTE TOGGLE ─────────────────────────────────────────────────
+  // ── MUTE ────────────────────────────────────────────────────────
   const toggleMute = () => {
     const vid = videoRef.current;
     if (!vid) return;
@@ -297,7 +302,7 @@ export default function VideoPlayer({
     setMuted(!muted);
   };
 
-  // ── PLAYBACK SPEED ──────────────────────────────────────────────
+  // ── SPEED ───────────────────────────────────────────────────────
   const changeSpeed = (newSpeed) => {
     const vid = videoRef.current;
     if (vid) vid.playbackRate = newSpeed;
@@ -305,18 +310,15 @@ export default function VideoPlayer({
     setShowSpeed(false);
   };
 
-  // ── FULLSCREEN TOGGLE ───────────────────────────────────────────
+  // ── FULLSCREEN ──────────────────────────────────────────────────
   const toggleFullscreen = () => {
     const el = wrapperRef.current;
     if (!el) return;
-    if (!document.fullscreenElement) {
-      el.requestFullscreen?.();
-    } else {
-      document.exitFullscreen?.();
-    }
+    if (!document.fullscreenElement) el.requestFullscreen?.();
+    else document.exitFullscreen?.();
   };
 
-  // ── AUTO-HIDE CONTROLS after 3s of inactivity ───────────────────
+  // ── AUTO-HIDE CONTROLS ──────────────────────────────────────────
   const resetHideTimer = () => {
     setShowControls(true);
     clearTimeout(hideTimer.current);
@@ -338,21 +340,16 @@ export default function VideoPlayer({
     return () => window.removeEventListener("keydown", handler);
   }, [src, handleClose, togglePlay, skip]);
 
-  // ── FORMAT SECONDS → m:ss ───────────────────────────────────────
+  // ── FORMAT SECONDS ──────────────────────────────────────────────
   const fmt = (s) => {
     if (isNaN(s) || s < 0) return "0:00";
-    const m   = Math.floor(s / 60);
-    const sec = Math.floor(s % 60).toString().padStart(2, "0");
-    return `${m}:${sec}`;
+    return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
   };
 
-  const pct = duration > 0 ? (currentTime / duration) * 100 : 0;
-
-  // Available playback speeds
+  const pct    = duration > 0 ? (currentTime / duration) * 100 : 0;
   const SPEEDS = [0.75, 1, 1.25, 1.5];
 
   return (
-    // ── BACKDROP ──────────────────────────────────────────────────
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: "rgba(0,0,0,0.92)" }}
@@ -377,12 +374,21 @@ export default function VideoPlayer({
           <X size={18} />
         </button>
 
-        {/* ── VIDEO ELEMENT ──────────────────────────────────────
-            Security attributes:
-            controlsList  — removes browser download button
-            disablePictureInPicture — blocks PiP mode
-            pointer-events: none    — prevents native context menu
-        ─────────────────────────────────────────────────────── */}
+        {/* Completed badge */}
+        {completedBadge && (
+          <div
+            className="absolute z-20 flex items-center gap-1.5 bg-green-600/90 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg"
+            style={{ top: 14, left: 14 }}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <circle cx="6" cy="6" r="6" fill="rgba(255,255,255,0.25)" />
+              <path d="M3.5 6l1.8 1.8L8.5 4.5" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Completed
+          </div>
+        )}
+
+        {/* Video element */}
         <video
           ref={videoRef}
           src={src}
@@ -399,48 +405,26 @@ export default function VideoPlayer({
           playsInline
         />
 
-        {/* ── WATERMARK OVERLAY ──────────────────────────────────
-            Soft deterrent — diagonal + corner text.
-            For hard DRM use a streaming backend (Cloudflare Stream,
-            Mux, AWS IVS) with HLS + signed URLs.
-        ─────────────────────────────────────────────────────── */}
-        <div
-          className="absolute inset-0 pointer-events-none select-none"
-          style={{ zIndex: 5 }}
-        >
-          {/* Center diagonal watermark */}
-          <div
-            style={{
-              position:      "absolute",
-              top:           "50%",
-              left:          "50%",
-              transform:     "translate(-50%, -50%) rotate(-25deg)",
-              color:         "rgba(255,255,255,0.10)",
-              fontSize:      "clamp(12px, 1.5vw, 18px)",
-              fontWeight:    "700",
-              whiteSpace:    "nowrap",
-              userSelect:    "none",
-              letterSpacing: "0.05em"
-            }}
-          >
+        {/* Watermark overlay */}
+        <div className="absolute inset-0 pointer-events-none select-none" style={{ zIndex: 5 }}>
+          <div style={{
+            position: "absolute", top: "50%", left: "50%",
+            transform: "translate(-50%, -50%) rotate(-25deg)",
+            color: "rgba(255,255,255,0.10)",
+            fontSize: "clamp(12px, 1.5vw, 18px)", fontWeight: "700",
+            whiteSpace: "nowrap", userSelect: "none", letterSpacing: "0.05em"
+          }}>
             {watermarkText}
           </div>
-          {/* Bottom-right corner watermark */}
-          <div
-            style={{
-              position:  "absolute",
-              bottom:    "64px",
-              right:     "12px",
-              color:     "rgba(255,255,255,0.18)",
-              fontSize:  "11px",
-              userSelect: "none"
-            }}
-          >
+          <div style={{
+            position: "absolute", bottom: "64px", right: "12px",
+            color: "rgba(255,255,255,0.18)", fontSize: "11px", userSelect: "none"
+          }}>
             GogalEdu
           </div>
         </div>
 
-        {/* ── CLICK-TO-PLAY / DOUBLE-CLICK-TO-FULLSCREEN ──────── */}
+        {/* Click-to-play / double-click-to-fullscreen */}
         <div
           className="absolute inset-0"
           style={{ zIndex: 6 }}
@@ -448,50 +432,50 @@ export default function VideoPlayer({
           onDoubleClick={toggleFullscreen}
         />
 
-        {/* ── CUSTOM CONTROLS BAR ────────────────────────────────
-            Fades in on hover / inactivity resets the timer
-        ─────────────────────────────────────────────────────── */}
+        {/* Controls bar */}
         <div
           className={`absolute bottom-0 left-0 right-0 transition-opacity duration-300 ${
             showControls || !playing ? "opacity-100" : "opacity-0"
           }`}
-          style={{
-            background: "linear-gradient(transparent, rgba(0,0,0,0.80))",
-            padding:    "28px 14px 12px",
-            zIndex:     7
-          }}
+          style={{ background: "linear-gradient(transparent, rgba(0,0,0,0.80))", padding: "28px 14px 12px", zIndex: 7 }}
         >
-          {/* ── PROGRESS / SEEK BAR ──────────────────────────────
-              Dragging this bar SEEKS (changes position) but does NOT
-              add accumulated watch time. Only real playback counts.
-          ─────────────────────────────────────────────────────── */}
+          {/* Seek bar */}
           <div
             ref={progressRef}
             className="relative w-full mb-3 cursor-pointer group"
             style={{ height: "4px" }}
             onClick={handleSeek}
           >
-            {/* Background track */}
             <div className="absolute inset-0 bg-white/25 rounded-full" />
-            {/* Buffered bar */}
-            <div
-              className="absolute left-0 top-0 h-full bg-white/30 rounded-full"
-              style={{ width: `${buffered}%` }}
-            />
-            {/* Played bar */}
-            <div
-              className="absolute left-0 top-0 h-full bg-green-500 rounded-full transition-all"
-              style={{ width: `${pct}%` }}
-            />
-            {/* Scrub thumb */}
+            <div className="absolute left-0 top-0 h-full bg-white/30 rounded-full" style={{ width: `${buffered}%` }} />
+            <div className="absolute left-0 top-0 h-full bg-green-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
             <div
               className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow group-hover:scale-125 transition-transform"
               style={{ left: `calc(${pct}% - 6px)` }}
             />
           </div>
 
-          {/* ── CONTROL BUTTONS ROW ──────────────────────────── */}
+          {/* Button row */}
           <div className="flex items-center gap-2">
+
+            {/* ── RESTART — leftmost button ──────────────────────
+                Always present. Highlighted in green when the video
+                has just ended so the student knows to click it.
+                Clicking it seeks to 0 and resets the watch-time
+                accumulator so the 90% completion can fire again.
+            ─────────────────────────────────────────────────── */}
+            <button
+              onClick={handleRestart}
+              className={`transition p-1 rounded ${
+                ended
+                  ? "text-green-400 hover:text-green-300"   // prominent after video ends
+                  : "text-white/60 hover:text-white"         // subtle while video is playing
+              }`}
+              title="Restart video (resets watch timer)"
+              aria-label="Restart video"
+            >
+              <RotateCcw size={17} />
+            </button>
 
             {/* Back 15s */}
             <button
@@ -531,9 +515,7 @@ export default function VideoPlayer({
             {/* Spacer */}
             <div className="flex-1" />
 
-            {/* ── PLAYBACK SPEED ───────────────────────────────
-                Dropdown selector for 0.75x / 1x / 1.25x / 1.5x
-            ─────────────────────────────────────────────────── */}
+            {/* Speed selector */}
             <div className="relative">
               <button
                 onClick={() => setShowSpeed(!showSpeed)}
@@ -549,9 +531,7 @@ export default function VideoPlayer({
                       key={s}
                       onClick={() => changeSpeed(s)}
                       className={`block w-full text-left px-4 py-2 text-xs font-medium transition ${
-                        speed === s
-                          ? "bg-green-600 text-white"
-                          : "text-white/80 hover:bg-white/10"
+                        speed === s ? "bg-green-600 text-white" : "text-white/80 hover:bg-white/10"
                       }`}
                     >
                       {s}x {s === 1 ? "(Normal)" : ""}
@@ -567,18 +547,12 @@ export default function VideoPlayer({
               className="text-white/80 hover:text-white transition p-1"
               aria-label={muted ? "Unmute" : "Mute"}
             >
-              {muted || volume === 0
-                ? <VolumeX size={17} />
-                : <Volume2 size={17} />
-              }
+              {muted || volume === 0 ? <VolumeX size={17} /> : <Volume2 size={17} />}
             </button>
 
             {/* Volume slider */}
             <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
+              type="range" min="0" max="1" step="0.05"
               value={muted ? 0 : volume}
               onChange={handleVolumeChange}
               className="w-16 accent-green-500 cursor-pointer"
@@ -596,7 +570,7 @@ export default function VideoPlayer({
           </div>
         </div>
 
-        {/* ── BIG PLAY BUTTON when paused ─────────────────────── */}
+        {/* Big play button when paused */}
         {!playing && (
           <div
             className="absolute inset-0 flex items-center justify-center pointer-events-none"
@@ -609,9 +583,9 @@ export default function VideoPlayer({
         )}
       </div>
 
-      {/* ── KEYBOARD SHORTCUT HINT ────────────────────────────── */}
+      {/* Keyboard hint */}
       <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/30 text-xs select-none pointer-events-none">
-        Space = Play/Pause  •  ← → = ±15s  •  Esc = Close
+        Space = Play/Pause  |  -15s ←     → +15s  |  Esc = Close
       </p>
     </div>
   );

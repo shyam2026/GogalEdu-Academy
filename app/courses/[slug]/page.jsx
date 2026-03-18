@@ -619,6 +619,8 @@ const CourseDetailPage = ({ params }) => {
     setOpenMonth(newOpen);
   }, [openMonth]);
 
+  
+
   // ── Video complete ────────────────────────────────────────
   const handleVideoComplete = useCallback((mKey) => {
     const newVS = { ...videoState, [mKey]: { completed: true } };
