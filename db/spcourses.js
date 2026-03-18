@@ -171,7 +171,7 @@ export const spcourses = {
             // Free Video 1: Introduction to Excel + Interface Tour
             lessonTitle:     "Introduction to Excel & Interface Tour",
             durationSeconds: 60,
-            video:           "/videos/excel-free-1.mp4", // ← YOUR VIDEO PATH
+            video:           "/videos/excel-intro.mp4", // ← YOUR VIDEO PATH
             preview:         true  // Marks this as publicly visible
           },
           {
@@ -766,7 +766,7 @@ export const spcourses = {
         { label: "Beginner to Advanced", icon: "target" },
         { label: "Self-Paced",           icon: "clock"  },
         { label: "Online",               icon: "online" },
-        { label: "Certificate",          icon: "award"  }
+        { label: "Microsoft Certified",          icon: "award"  }
       ],
       stats:   { rating: "4.8", students: "300+", projects: "5", guarantee: "100%" },
       pricing: { price: "5999", discountPrice: "2999", discount: "50% OFF" },
@@ -1165,7 +1165,7 @@ export const spcourses = {
         { label: "Beginner to Advanced", icon: "target" },
         { label: "Self-Paced",           icon: "clock"  },
         { label: "Online",               icon: "online" },
-        { label: "Certificate",          icon: "award"  }
+        { label: "Microsoft Certified",          icon: "award"  }
       ],
       stats:   { rating: "4.8", students: "350+", projects: "5", guarantee: "100%" },
       pricing: { price: "5999", discountPrice: "2999", discount: "50% OFF" },
@@ -1545,7 +1545,7 @@ export const spcourses = {
         { label: "Beginner to Advanced", icon: "target" },
         { label: "Self-Paced",           icon: "clock"  },
         { label: "Online",               icon: "online" },
-        { label: "Certificate",          icon: "award"  }
+        { label: "Microsoft Certified",          icon: "award"  }
       ],
       stats:   { rating: "4.7", students: "250+", projects: "5", guarantee: "100%" },
       pricing: { price: "5999", discountPrice: "2999", discount: "50% OFF" },
@@ -1916,7 +1916,7 @@ export const spcourses = {
         { label: "Beginner to Advanced", icon: "target" },
         { label: "Self-Paced",           icon: "clock"  },
         { label: "Online",               icon: "online" },
-        { label: "Certificate",          icon: "award"  }
+        { label: "Microsoft Certified",          icon: "award"  }
       ],
       stats:   { rating: "4.9", students: "500+", projects: "6", guarantee: "100%" },
       pricing: { price: "5999", discountPrice: "2999", discount: "50% OFF" },
