@@ -25,8 +25,14 @@ export default function WorkshopPage() {
     const [timeLeft, setTimeLeft] = useState(getTimeLeft());
     
 
+  // Function to calculate time left until the target date
+  // Target date: Sunday, 29 March 2026, 7:30 PM IST
+  // Example: "2026-03-29T19:30:00+05:30"
+  // Change the date and time as needed for future workshops
+  // Change the dates at 228, 414, 594, 705 as well
+
   function getTimeLeft() {
-    const TARGET_DATE = new Date("2026-01-11T19:30:00+05:30");
+    const TARGET_DATE = new Date("2026-03-29T19:30:00+05:30");
     const now = new Date();
     const diff = TARGET_DATE - now;
 
@@ -198,7 +204,7 @@ export default function WorkshopPage() {
               {/* Key Stats - Grid adjusts for mobile */}
               <div className="grid grid-cols-3 gap-2 md:gap-5 py-4 md:py-5 border-y border-green-100">
                 <div className="text-center">
-                  <div className="text-xl md:text-3xl font-bold text-green-600">4,700+</div>
+                  <div className="text-xl md:text-3xl font-bold text-green-600">4,300+</div>
                   <div className="text-[10px] md:text-sm text-gray-500">Placements</div>
                 </div>
                 <div className="text-center">
@@ -219,7 +225,7 @@ export default function WorkshopPage() {
                     <div className="space-y-1.5 text-sm md:text-base text-gray-700">
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-green-600" />
-                        <span><strong>Date:</strong> Sunday, 11 Jan 2026</span>
+                        <span><strong>Date:</strong> Sunday, 29 March 2026</span>
                       </div>
                       <div><strong>Time:</strong> 7:30 - 9:30 PM IST</div>
                       <div><strong>Format:</strong> Live Interactive Session</div>
@@ -396,14 +402,17 @@ export default function WorkshopPage() {
           
           <div className="max-w-5xl mx-auto">
             {/* Timeline Header */}
-            <div className="mb-6 md:mb-10 text-center md:text-left">
+            <div className="mb-6 md:mb-6 text-center md:text-left">
               <div className="inline-block md:block bg-green-50 px-4 py-2 rounded-lg md:bg-transparent md:p-0">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                   <div className="flex items-center justify-center md:justify-start gap-2">
                     <Clock className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
-                    <span className="font-semibold text-gray-700 text-sm md:text-base">Full Day Intensive</span>
+                    <span className="font-semibold text-gray-700 text-sm md:text-base">7:30 - 9:30 PM IST</span>
                   </div>
-                  <div className="text-xs md:text-sm text-gray-500">Sunday, 11 Jan 2026 7:30 - 9:30 PM IST</div>
+                  <div className="flex items-center justify-center md:justify-start gap-2">
+                    <Calendar className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
+                  <span className="font-semibold text-gray-700 text-sm md:text-base">Sunday, 29 March 2026 </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -534,7 +543,7 @@ export default function WorkshopPage() {
           </div>
           <div className="text-center p-3 bg-white/5 rounded-lg">
             <div className="text-2xl md:text-4xl font-bold text-white mb-1">
-              4,700+
+              4,300+
             </div>
             <div className="text-green-300 text-xs md:text-sm">Placement</div>
           </div>
@@ -582,7 +591,7 @@ export default function WorkshopPage() {
               ))}
             </div>
             <div className="text-green-300 text-xs md:text-sm">
-              Workshop: Jan 11, 2026 • 7:30 - 9:30 PM IST
+              Workshop: Sunday March 29, 2026 • 7:30 - 9:30 PM IST
             </div>
           </div>
 
@@ -693,7 +702,7 @@ export default function WorkshopPage() {
         <div className="flex flex-col md:flex-row md:items-center md:gap-3">
           <span className="text-green-300 line-through text-xs md:text-sm">₹499</span>
           <span className="hidden md:block text-white text-sm font-semibold">
-            Sunday, 11 Jan 2026 • 7:30 PM IST
+            Sunday, 29 March 2026 • 7:30 PM IST
           </span>
         </div>
       </div>
