@@ -29,7 +29,7 @@ export default function WorkshopPage() {
   // Target date: Sunday, 29 March 2026, 7:30 PM IST
   // Example: "2026-03-29T19:30:00+05:30"
   // Change the date and time as needed for future workshops
-  // Change the dates at 228, 414, 594, 705 as well
+  // Change the dates at 228, 414, 594, 705 as well to keep them in sync
 
   function getTimeLeft() {
     const TARGET_DATE = new Date("2026-03-29T19:30:00+05:30");
